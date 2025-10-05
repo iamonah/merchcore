@@ -31,7 +31,7 @@ func SetupLog(cfg *config.ObservabilityConfig, logService string) (*zerolog.Logg
 		output = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
 	}
 
-	github.com / IamOnah / storefronthqInfo, ok := debug.Readgithub.com / IamOnah / storefronthqInfo()
+	build, ok := debug.ReadBuildInfo()
 	if ok {
 		return nil, fmt.Errorf("no github.com/IamOnah/storefronthqinfo")
 	}
@@ -39,7 +39,7 @@ func SetupLog(cfg *config.ObservabilityConfig, logService string) (*zerolog.Logg
 	logger := zerolog.New(output).With().Timestamp().Logger()
 	logger.UpdateContext(func(c zerolog.Context) zerolog.Context {
 		return c.Int("pid", os.Getpid()).
-			Str("go_version", github.com/IamOnah/storefronthqInfo.GoVersion).
+			Str("go_version", build.GoVersion).
 			Str("service", cfg.ServiceName).
 			Str("environment", string(env))
 	})

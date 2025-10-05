@@ -1,0 +1,71 @@
+{{define "subject"}}Welcome to StoreFrontHq! Verify Your Email{{end}}
+
+{{define "htmlBody"}}
+<!doctype html>
+<html>
+
+<head>
+   <meta name="viewport" content="width=device-width" />
+   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+   <style>
+      body {
+         font-family: Arial, sans-serif;
+         line-height: 1.6;
+         color: #333;
+      }
+      .container {
+         max-width: 600px;
+         margin: 0 auto;
+         padding: 20px;
+      }
+      .code-box {
+         background: #f4f4f4;
+         padding: 12px;
+         border-radius: 6px;
+         font-family: monospace;
+         font-size: 16px;
+      }
+   </style>
+</head>
+
+<body>
+   <div class="container">
+      <p>Hi {{.name}},</p>
+      <p>Welcome to <strong>StoreFrontHq</strong> 🎉 — we’re excited to help you create and grow your business!</p>
+
+      <p>To finish setting up your account, please verify your email address using the code below:</p>
+
+      <div class="code-box">
+         {{.activationToken}}
+      </div>
+
+      <p>This code will expire in <strong>1:30 minutes</strong>, so be sure to use it soon.</p>
+
+      <p>If you didn’t sign up for StoreFrontHq, you can safely ignore this email.</p>
+
+      <p>Thanks,<br>
+      The StoreFrontHq Team</p>
+   </div>
+</body>
+
+</html>
+{{end}}
+
+
+{{define "plainBody"}}
+Hi {{.name}},
+
+Welcome to StoreFrontHq 🎉 — we’re excited to help you create and grow your business!
+
+To finish setting up your account, please verify your email address using the code below:
+
+{{.activationToken}}
+
+This code will expire in 1:30 minutes, so be sure to use it soon.
+
+If you didn’t sign up for StoreFrontHq, you can safely ignore this email.
+
+Thanks,
+The StoreFrontHq Team
+{{end}}
+

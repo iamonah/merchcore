@@ -1,0 +1,59 @@
+services:
+  postgres-storefronthq:
+    image: postgres:18.0
+    environment:
+      POSTGRES_PASSWORD: "secret"
+      POSTGRES_USER:  "admin"
+      POSTGRES_DB: "storefronthq"
+    ports:
+      - "5432:5432"
+    volumes:
+      - "storehqdata:/var/lib/postgresql/data"
+    networks:
+      - "storefronthqbackend"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  redis-storefronthq:
+    image: redis:8.2.0-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - "storefronthqbackend"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  storefronthqprod:
+    github.com/IamOnah/storefronthq:
+      context: .
+      dockerfile: Dockerfile 
+      target: runtime
+    ports:
+      - "8080:8080"
+    networks:
+      - storefronthqbackend
+    secrets:
+      - db_password
+    volumes:
+      - storehqdata:/var/lib/postgresql/data
+    depends_on:
+      postgres-storefronthq:
+        condition: service_healthy
+      redis-storefronthq:
+        condition: service_healthy
+
+volumes:
+  storehqdata:
+    driver: "local"
+ 
+networks:
+  storefronthqbackend:
+
+secrets:
+  db_password:
+    file: /home/leo/workspace/secrets/db_password.txt
+ 

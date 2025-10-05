@@ -1,0 +1,113 @@
+-include app.env
+
+.PHONY: help
+help:
+	@echo ''
+	@echo 'Usage:'
+	@sed -n 's/^##//p' $(MAKEFILE_LIST) | column -t -s ':' | sed -e 's/^/ /'
+	@echo ''
+
+## run: Start the Go server
+.PHONY: run
+run:
+	@echo starting the Go server
+	go run cmd/main.go
+
+## migrations name=<name>: Create a new migration
+.PHONY: new-migration
+migrations:
+	@echo creating migration file
+	@cd internal/infra/database/migrations && tern new $(name)
+
+## migrations-up: Apply up migrations
+.PHONY: migrations-up
+migrations-up:
+	@echo running up migrations
+	tern mig
+
+## migrations-down: Apply down migrations
+.PHONY: migrations-down
+migrations-down:
+	@echo running down migrations
+	migrate -database=$(DSN) -path=./internal/db/migrations -verbose down
+
+## migrations-force version=<version>: Force migrations to a version
+.PHONY: migrations-force
+migrations-force:
+	@echo "Forcing migration version $(version)"
+	migrate -database=$(DSN) -path=./internal/db/migrations force $(version)
+
+## test: Run all unit tests
+.PHONY: test
+test:
+	@echo running all unit tests
+	go test -v -cover -count=1 ./...
+
+## audit: Format, lint, test
+.PHONY: audit
+audit:
+	@echo 'Formatting...'
+	go fmt ./...
+
+	@echo 'Linting...'
+	golangci-lint run
+
+	# @echo 'Running tests...'
+	# go test -race -vet=off ./...
+
+## vendor: Tidy and vendor dependencies
+.PHONY: vendor
+vendor:
+	@echo Vendoring...
+	go mod tidy
+	go mod verify
+	go mod vendor
+
+## build: Build the Go binary
+.PHONY: build
+build:
+	@echo Building the Go binary
+	go build -o bin/app cmd/main.go
+
+## clean: Remove build artifacts
+.PHONY: clean
+clean:
+	@echo cleaning our binarys
+	rm -rf ./bin/*
+
+## mock: filename=<relative path to where you want mock genrated to be stored> interface-name=<iface> Generate mocks
+.PHONY: mock
+mock:
+	mockgen -package mockdb -destination $(filename) build/internal/domain/users $(interface-name)
+	mockgen -package mockdb -destination ./internal/domain/user/userstore/mock/user.go build/internal/domain/users UserRepository
+
+
+## redis: run the redis client   
+.PHONY: redis
+redis:
+	docker run --name redis-bankapp -p 6379:6379 -d  redis:8.2.0-alpine
+
+## compose-build: run compose build
+.PHONY: compose-build
+compose-build:
+	docker compose build --no-cache
+
+## compose-up: run compose up
+.PHONY: compose-up 
+compose-up:
+	docker compose -f docker-compose.yaml up
+
+## compose-debug: run compose debug
+.PHONY: compose-debug
+compose-debug:
+	docker compose -f docker-compose.yaml -f docker-compose-debug.yaml up
+
+## compose-down: run compose down
+.PHONY: compose-down
+compose-down:
+	docker compose down
+
+## compose-test: run compose test
+.PHONY: compose-test
+compose-test:
+	docker compose -f docker-compose.yaml -f docker-compose-test.yaml run --build simplebank

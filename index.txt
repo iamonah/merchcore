@@ -1,0 +1,39 @@
+| Term                     | Explanation                                                                                                                                                | Example                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **Catalog**              | The organized list of products that customers can browse. Usually includes categories, product descriptions, images, variants (sizes, colors), and prices. | Think of Amazon's "Electronics" page – that’s a catalog of items.            |
+| **Inventory**            | The stock levels of each product variant. This ensures you don't oversell. Inventory updates when someone buys or cancels.                                 | You have 10 blue T-shirts. When someone orders 2, inventory becomes 8.       |
+| **Customer**             | The person buying from your store. You may store their profile, order history, preferences.                                                                | A user account in your system.                                               |
+| **Order**                | A record of what the customer bought (products + quantity), total price, shipping details, status (pending, shipped, delivered).                           | Like an invoice: "Order #12345 – 2 x Blue T-shirt".                          |
+| **Payment**              | How the customer pays for the order (credit card, PayPal, crypto). Includes status (paid, refunded, failed).                                               | Stripe/PayPal handles payment. Your backend must track if it was successful. |
+| **Notification**         | How you inform users about updates (order confirmed, shipped, delivered). Could be via email, SMS, push notification.                                      | "Your order has been shipped!" email.                                        |
+| **Chat / Support**       | A way for customers to talk to support or sellers. Could be real-time (WebSocket) or async (ticket-based).                                                 | WhatsApp-like chat with support.                                             |
+| **Fulfillment**          | The process of preparing and delivering the order. May involve warehouse picking, packing, shipping.                                                       | Shiprocket, DHL, FedEx API integration.                                      |
+| **Promotion / Discount** | Rules for reducing prices (coupons, sales).                                                                                                                | "10% off when you buy 3 or more".                                            |
+| **Cart**                 | Temporary storage of selected items before checkout.                                                                                                       | Customer adds items to cart, reviews, then checks out.                       |
+
+
+/internal
+   /catalog
+      /entity       # Product, Category aggregates
+      /repository   # Interface (repo) + implementation
+      /service      # CatalogService (business logic)
+   /inventory
+      ...
+   /order
+      ...
+   /payment
+      ...
+/pkg
+   /transport
+       /http        # HTTP handlers
+       /ws          # WebSocket handlers for chat
+   /db
+       /postgres    # DB adapters for repos
+   /notifier
+       /email, sms, push adapters
+/cmd
+   /server         # main.go for starting API
+
+
+signup
+setupstore

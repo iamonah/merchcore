@@ -1,0 +1,33 @@
+services:
+  simplebank:
+    command:
+      - "dlv"
+      - "debug"
+      - "./cmd/main.go"
+      - "--build-flags=-gcflags=all='-N -l'"
+      - "--listen=:4000"
+      - "--headless=true"
+      - "--log=true"
+      - "--log-output=debugger,debuglineerr,gdbwire,lldbout,rpc"
+      - "--accept-multiclient"
+      - "--continue"
+      - "--api-version=2"
+    ports:
+      - "3000:9090"
+      - "4000:4000"
+  storefronthq-app:
+    build:
+      context: .
+      dockerfile: Dockerfile 
+      target: dev
+    ports:
+      - "3000:8080"
+    networks:
+      - storefronthqbackend
+    volumes:
+      - ./:/app
+    depends_on:
+      postgres-storefronthq:
+        condition: service_healthy
+      redis-storefronthq:
+        condition: service_healthy

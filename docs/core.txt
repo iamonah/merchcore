@@ -1,0 +1,17 @@
+Core purpose:
+
+To allow anyone to sign up and instantly become a store owner (create and manage their own online store).
+
+To allow those store owners to invite staff/admins to help manage their store.
+
+To allow customers to sign up and buy products across those stores.
+
+At the system level, you (Victor) act as the platform owner (system admin), managing the whole infrastructure 
+(stores, users, payments, settings).
+
+
+Users can be both buyers and sellers.
+
+Stores are isolated tenants, but run on your shared infrastructure.
+
+Roles and permissions define what each actor can do at both system level and store level.

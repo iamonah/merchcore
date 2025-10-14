@@ -1,8 +1,6 @@
 package users
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -11,11 +9,10 @@ import (
 
 const HashCost = 12
 
-func HashPassword(password []byte) ([]byte, error) {
-	sha := sha256.Sum256(password)
-	shaHex := hex.EncodeToString(sha[:]) //eliminate the password-to-long error
+var ErrInvalidPassword = errors.New("incorrect password")
 
-	hashPassword, err := bcrypt.GenerateFromPassword([]byte(shaHex), HashCost)
+func HashPassword(password []byte) ([]byte, error) {
+	hashPassword, err := bcrypt.GenerateFromPassword([]byte(password), HashCost)
 	if err != nil {
 		switch {
 		case errors.Is(err, bcrypt.ErrHashTooShort):
@@ -27,15 +24,13 @@ func HashPassword(password []byte) ([]byte, error) {
 }
 
 func ComparePassword(storedHash, password []byte) error {
-	sha := sha256.Sum256(storedHash)
-	shaHex := hex.EncodeToString(sha[:])
-
-	err := bcrypt.CompareHashAndPassword([]byte(shaHex), password)
+	err := bcrypt.CompareHashAndPassword(storedHash, []byte(password))
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
-			return fmt.Errorf("incorrect password: %w", err)
+			return ErrInvalidPassword
 		}
 		return err
 	}
 	return nil
 }
+

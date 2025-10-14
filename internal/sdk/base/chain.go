@@ -2,11 +2,13 @@ package base
 
 import "net/http"
 
-type Middlware func(http.HandlerFunc) http.HandlerFunc
+type HTTPHandlerWithErr func(w http.ResponseWriter, r *http.Request) error
 
-func Chain(h http.HandlerFunc, middlwares ...Middlware) http.HandlerFunc {
-	for i := len(middlwares) - 1; i >= 0; i-- {
-		h = middlwares[i](h)
+type Middleware func(HTTPHandlerWithErr) HTTPHandlerWithErr
+
+func Chain(h HTTPHandlerWithErr, middlewares ...Middleware) HTTPHandlerWithErr {
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		h = middlewares[i](h)
 	}
 	return h
 }

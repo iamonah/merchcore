@@ -1,6 +1,8 @@
 package jobs
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -13,9 +15,9 @@ import (
 )
 
 const (
-	TypeEmailVerify  = "email:verify"
-	TypeEmailWelcome = "email:welcome"
-	TypeImageResize  = "image:resize"
+	TypeEmailVerify = "email:verify"
+	// TypeEmailWelcome = "email:welcome"
+	TypeImageResize = "image:resize"
 )
 
 type JobClient struct {
@@ -24,8 +26,8 @@ type JobClient struct {
 }
 
 type JobService interface {
-	WelcomeEmailJob(firstname string, code string, userID uuid.UUID) error
-	VerificationEmailJob(firstname string, code string, userID uuid.UUID) error
+	WelcomeEmailJob(firstname string, code string, userID uuid.UUID, email string) error
+	ResendVerificationTokenJob(firstname string, code string, userID uuid.UUID) error
 	PasswordResetEmailJob(email string, token string, userId uuid.UUID) error
 }
 
@@ -45,13 +47,25 @@ func (jc *JobClient) CloseClient() {
 }
 
 type VerifyEmailPayload struct {
-	UserID    uuid.UUID
-	FirstName string
-	Code      string
+	Email          string
+	FirstName      string
+	Code           string
+	UnsubscribeURL string
 }
 
-func (jq *JobClient) WelcomeEmailJob(firstname string, code string, userID uuid.UUID) error {
-	payload, err := json.Marshal(VerifyEmailPayload{FirstName: firstname, Code: code})
+// TODO: remember test phase so modify the unsubscribe link
+func (jq *JobClient) WelcomeEmailJob(firstname string, code string, userID uuid.UUID, email string) error {
+	tokenBytes := make([]byte, 32)
+	rand.Read(tokenBytes)
+	unsubscribeToken := base64.URLEncoding.EncodeToString(tokenBytes)
+	var unsubscribeURL = fmt.Sprintf("https://yourapp.com/unsubscribe?token=%s&email=%s", unsubscribeToken, email)
+
+	payload, err := json.Marshal(
+		VerifyEmailPayload{
+			FirstName: firstname,
+			Code:      code, Email: email,
+			UnsubscribeURL: unsubscribeURL,
+		})
 	if err != nil {
 		jq.logger.Error().
 			Err(err).
@@ -91,7 +105,7 @@ func (jq *JobClient) WelcomeEmailJob(firstname string, code string, userID uuid.
 }
 
 // for resending a an activation token
-func (jq *JobClient) VerificationEmailJob(firstname string, code string, userID uuid.UUID) error {
+func (jq *JobClient) ResendVerificationTokenJob(firstname string, code string, userID uuid.UUID) error {
 	payload, err := json.Marshal(VerifyEmailPayload{FirstName: firstname, Code: code})
 	if err != nil {
 		jq.logger.Error().

@@ -1,13 +1,16 @@
 package users
 
 import (
+	"net/mail"
 	"time"
 
+	"github.com/IamOnah/storefronthq/internal/domain/shared/contact"
+	"github.com/IamOnah/storefronthq/internal/domain/shared/role"
 	"github.com/google/uuid"
 )
 
 type UserCreate struct {
-	Password    *string
+	Password    string
 	FirstName   string
 	LastName    string
 	Email       string
@@ -43,4 +46,17 @@ func (ses *Session) UserIDCheck(UserId uuid.UUID) bool {
 
 func (ses *Session) IsSessionExpired() bool {
 	return time.Now().After(ses.ExpiresAt)
+}
+
+type UpdateUser struct {
+	FirstName      *string
+	LastName       *string
+	Email          *mail.Address
+	Roles          *role.Role
+	Password       *string
+	IsEnabled      *bool
+	PhoneNumber    *contact.Contact
+	UpdatedAt      *time.Time
+	NumOfStore     *int
+	IsStoreCreated *bool
 }

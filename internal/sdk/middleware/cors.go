@@ -8,9 +8,9 @@ import (
 	"github.com/IamOnah/storefronthq/internal/sdk/base"
 )
 
-func EnableCors(cfg config.Config) base.Middlware {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func EnableCors(cfg config.Config) base.Middleware {
+	return func(next base.HTTPHandlerWithErr) base.HTTPHandlerWithErr {
+		return func(w http.ResponseWriter, r *http.Request) error {
 			w.Header().Add("Vary", "Origin")
 			w.Header().Add("Vary", "Access-Control-Request-Method")
 			w.Header().Add("Vary", "Access-Control-Request-Headers")
@@ -18,23 +18,22 @@ func EnableCors(cfg config.Config) base.Middlware {
 			origin := r.Header.Get("Origin")
 
 			if origin != "" {
-				for i := range cfg.Server.CORSAllowedOrigins {
-					cleanOrigins := strings.TrimSpace(cfg.Server.CORSAllowedOrigins[i])
-					if origin == cleanOrigins {
+				for _, o := range cfg.Server.CORSAllowedOrigins {
+					if strings.TrimSpace(o) == origin {
 						w.Header().Set("Access-Control-Allow-Origin", origin)
 
 						if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
-							w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, POST,GET, PUT, PATCH, DELETE")
+							w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, POST, GET, PUT, PATCH, DELETE")
 							w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 							w.Header().Set("Access-Control-Max-Age", "1800")
 							w.WriteHeader(http.StatusNoContent)
-							return
+							return nil
 						}
 						break
 					}
 				}
 			}
-			next.ServeHTTP(w, r)
-		})
+			return next(w, r)
+		}
 	}
 }

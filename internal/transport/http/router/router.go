@@ -1,73 +1,106 @@
 package router
 
 import (
+	"context"
+	"fmt"
 	"net/http"
+	"runtime/debug"
+	"time"
 
-	"github.com/IamOnah/storefronthq/internal/app/auth"
+	"github.com/IamOnah/storefronthq/internal/sdk/base"
+	"github.com/IamOnah/storefronthq/internal/sdk/errs"
+	"github.com/IamOnah/storefronthq/internal/sdk/middleware"
+	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 
 	"github.com/gorilla/mux"
 )
 
-func SetupRouter(us *auth.UserService) http.Handler {
-	r := mux.NewRouter()
+type App struct {
+	log      *zerolog.Logger
+	mux      *mux.Router
+	globalMw []base.Middleware
+}
 
-	auth := r.PathPrefix("/auth").Subrouter()
-	auth.HandleFunc("/register", us.RegisterUser).Methods(http.MethodPost)
-	auth.HandleFunc("/verify", us.ActivateUser).Methods(http.MethodPost)
-	auth.HandleFunc("/signin", us.UserSignin).Methods(http.MethodPost)
-	auth.HandleFunc("/signout", us.SignOut).Methods(http.MethodPost)
-	auth.HandleFunc("/resend", us.ResendVerificationToken).Methods(http.MethodPost)
-	auth.HandleFunc("/forgot-password", us.ForgotPassword).Methods(http.MethodPost)
-	auth.HandleFunc("/reset-password", us.ResetPassword).Methods(http.MethodPost)
-	auth.HandleFunc("/change-password", us.ChangePassword).Methods(http.MethodPost)
-	auth.HandleFunc("/token/renew_access", us.RenewAccessToken).Methods(http.MethodPost)
+func NewApp(log *zerolog.Logger, globalMw ...base.Middleware) *App {
+	return &App{
+		log:      log,
+		mux:      mux.NewRouter(),
+		globalMw: globalMw,
+	}
+}
 
-	// tenant := r.PathPrefix("/store").Subrouter()
-	// tenant.HandleFunc("/setup", SetupTenantHandler).Methods("POST")
-	// tenant.HandleFunc("", GetTenantHandler).Methods("GET")
-	// tenant.HandleFunc("/update", UpdateTenantHandler).Methods("PUT")
-	// tenant.HandleFunc("/delete", DeleteTenantHandler).Methods("DELETE")
-	// tenant.HandleFunc("/plan/upgrade", UpgradePlanHandler).Methods("POST")
-	// tenant.HandleFunc("/plan/cancel", CancelPlanHandler).Methods("POST")
+func (a *App) HandleFunc(method string, path string, handler base.HTTPHandlerWithErr, mw ...base.Middleware) {
+	allMw := append(a.globalMw, mw...)
+	wrapped := base.Chain(handler, allMw...)
 
-	// stores := r.PathPrefix("/stores").Subrouter()
-	// stores.HandleFunc("", ListStoresHandler).Methods("GET")                 // list all stores
-	// stores.HandleFunc("/create", CreateStoreHandler).Methods("POST")        // create new store
-	// stores.HandleFunc("/{id}", GetStoreHandler).Methods("GET")              // get store details
-	// stores.HandleFunc("/{id}/update", UpdateStoreHandler).Methods("PUT")    // update store info
-	// stores.HandleFunc("/{id}/delete", DeleteStoreHandler).Methods("DELETE") // delete store
+	a.mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		reqID := r.Header.Get("X-Request-ID")
+		if reqID == "" {
+			reqID = uuid.New().String()
+		}
+		r = r.WithContext(context.WithValue(r.Context(), middleware.RequestIdKey, reqID))
+		nwr := middleware.NewResponseWriter(w)
+		start := time.Now()
+		ip := base.GetClientIP(r)
 
-	// products := r.PathPrefix("/stores/{storeID}/products").Subrouter()
-	// products.HandleFunc("", ListProductsHandler).Methods("GET")                 // list products
-	// products.HandleFunc("/create", CreateProductHandler).Methods("POST")        // create product
-	// products.HandleFunc("/{id}", GetProductHandler).Methods("GET")              // get product
-	// products.HandleFunc("/{id}/update", UpdateProductHandler).Methods("PUT")    // update product
-	// products.HandleFunc("/{id}/delete", DeleteProductHandler).Methods("DELETE") // delete product
-	// products.HandleFunc("/{id}/stock", UpdateStockHandler).Methods("PATCH")     // update stock qty
+		defer func() {
+			if rec := recover(); rec != nil {
+				a.log.Error().
+					Interface("panic", rec).
+					Bytes("stack", debug.Stack()).
+					Msg("panic recovered in router")
+				base.WriteJSONInternalError(nwr)
+			}
+			a.log.Info().
+				Str("request_id", reqID).
+				Str("method", r.Method).
+				Str("url", r.URL.Path).
+				Str("client_ip", ip).
+				Str("user_agent", r.UserAgent()).
+				Int("status_code", nwr.StatusCode).
+				Dur("latency", time.Since(start)).
+				Msg("incoming request")
+		}()
 
-	// orders := r.PathPrefix("/stores/{storeID}/orders").Subrouter()
-	// orders.HandleFunc("", ListOrdersHandler).Methods("GET")                             // list orders
-	// orders.HandleFunc("/{id}", GetOrderHandler).Methods("GET")                          // get order
-	// orders.HandleFunc("/{id}/update-status", UpdateOrderStatusHandler).Methods("PATCH") // update status
+		if err := wrapped(nwr, r); err != nil {
+			a.handleError(nwr, r, err)
+		}
+	}).Methods(method)
+}
 
-	// customers := r.PathPrefix("/stores/{storeID}/customers").Subrouter()
-	// customers.HandleFunc("", ListCustomersHandler).Methods("GET")                 // list customers
-	// customers.HandleFunc("/{id}", GetCustomerHandler).Methods("GET")              // get customer
-	// customers.HandleFunc("/{id}/delete", DeleteCustomerHandler).Methods("DELETE") // delete customer
+func (app *App) handleError(w http.ResponseWriter, r *http.Request, err error) {
+	if err == nil {
+		return
+	}
 
-	// billing := r.PathPrefix("/billing").Subrouter()
-	// billing.HandleFunc("/subscribe", SubscribeHandler).Methods("POST")       // start subscription
-	// billing.HandleFunc("/cancel", CancelSubscriptionHandler).Methods("POST") // cancel subscription
-	// billing.HandleFunc("/invoices", ListInvoicesHandler).Methods("GET")      // list invoices
+	reqID := r.Context().Value(middleware.RequestIdKey).(string)
+	log := app.log.With().
+		Str("req_id", reqID).
+		Logger()
 
-	// checkout := r.PathPrefix("/checkout").Subrouter()
-	// checkout.HandleFunc("/{storeID}", CheckoutHandler).Methods("POST") // customer checkout
+	if appErr, ok := err.(*errs.AppErr); ok {
+		event := "http.request.failed"
+		if appErr.Code >= 500 {
+			log.Error().
+				Err(fmt.Errorf("[internal]: %v", appErr)).
+				Str("func_name", appErr.FuncName).
+				Str("file_name", appErr.FileName).
+				Str("event", event).
+				Int("code", appErr.Code).Send()
 
-	// admin := r.PathPrefix("/admin").Subrouter()
-	// admin.HandleFunc("/users", ListAllUsersHandler).Methods("GET")     // list all users
-	// admin.HandleFunc("/tenants", ListAllTenantsHandler).Methods("GET") // list all tenants
-	// admin.HandleFunc("/tenants/{id}", GetTenantHandler).Methods("GET") // get tenant detail
-	// admin.HandleFunc("/stats", SystemStatsHandler).Methods("GET")      // system stats
+			base.WriteJSONInternalError(w)
+			return
+		}
 
-	return r
+		base.WriteJSONError(w, appErr)
+		return
+	}
+
+	log.Error().
+		Err(err).
+		Str("event", "http.request.unexpected").
+		Msg("[panic] unhandled or non-AppErr error")
+
+	base.WriteJSONInternalError(w)
 }

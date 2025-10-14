@@ -1,0 +1,65 @@
+package mailer
+
+import (
+	"bytes"
+	"embed"
+	"fmt"
+	"html/template"
+
+	"github.com/resend/resend-go/v2"
+)
+
+//go:embed templates
+var templateFS embed.FS
+
+type Mailer struct {
+	client *resend.Client
+	sender string
+}
+
+func NewMailer(apikey string, sender string) Mailer {
+	client := resend.NewClient(apikey)
+	return Mailer{
+		client: client,
+		sender: sender,
+	}
+}
+
+func (m Mailer) Send(recipient, templateFile string, data any) error {
+	tmpl, err := template.New("email").ParseFS(templateFS, "templates/"+templateFile)
+	if err != nil {
+		return err
+	}
+
+	subject := new(bytes.Buffer)
+	err = tmpl.ExecuteTemplate(subject, "subject", data)
+	if err != nil {
+		return err
+	}
+
+	plainBody := new(bytes.Buffer)
+	err = tmpl.ExecuteTemplate(plainBody, "plainBody", data)
+	if err != nil {
+		return err
+	}
+
+	htmlBody := new(bytes.Buffer)
+	err = tmpl.ExecuteTemplate(htmlBody, "htmlBody", data)
+	if err != nil {
+		return err
+	}
+	params := &resend.SendEmailRequest{
+		From: m.sender,
+		To:   []string{recipient},
+		Html: htmlBody.String(),
+		Text: plainBody.String(),
+		Subject: subject.String(),
+	}
+
+	sent, err := m.client.Emails.Send(params)
+	if err != nil {
+		return fmt.Errorf("sendemail: %w", err)
+	}
+	fmt.Println(sent.Id)
+	return nil
+}

@@ -1,1 +1,50 @@
 work on the get user features involvein a row creation returnig a role
+
+
+If you want, I can help you define a standard format (a small convention) for all your service errors — e.g.
+"action: context[%v]: %s" — so your whole project has this clean style everywhere.
+Would you like that?
+
+context//entity
+
+🧠 Why This Works So Well
+
+The action (resend) tells what operation was happening.
+
+The context (userID[%s]) identifies who/what it was acting on.
+
+The message (%s) shows the actual cause.
+
+No “failed to…” repetition — the log line itself shows the failure.
+
+The structure is uniform across the entire project.
+
+
+// In jobs package, add to NewJobProcessor or RunJobService
+import "os"
+
+func clearQueuesIfDev(cfg config.RedisConfig, logger *zerolog.Logger) error {
+    if os.Getenv("ENV") != "development" {
+        return nil
+    }
+    // Use Asynq client to clear (or redis-cli equivalent in code)
+    rdb := redis.NewClient(&redis.Options{Addr: cfg.Address, Password: cfg.Password, DB: 0})
+    defer rdb.Close()
+    
+    queues := []string{"asynq:queues:critical", "asynq:queues:default"}
+    for _, q := range queues {
+        n, err := rdb.Del(context.Background(), q).Result()
+        if err != nil {
+            logger.Warn().Err(err).Str("queue", q).Msg("failed to clear queue")
+            continue
+        }
+        if n > 0 {
+            logger.Info().Int64("cleared_tasks", n).Str("queue", q).Msg("cleared dev queue")
+        }
+    }
+    return nil
+}
+
+// Then in RunJobService, before starting:
+err := clearQueuesIfDev(cfg, logger)
+if err != nil { /* handle */ }

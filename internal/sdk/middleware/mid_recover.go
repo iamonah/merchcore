@@ -11,22 +11,19 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func RecoverPanic(log *zerolog.Logger) base.Middlware {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
+func RecoverPanic(log *zerolog.Logger) base.Middleware {
+	return func(next base.HTTPHandlerWithErr) base.HTTPHandlerWithErr {
+		return func(w http.ResponseWriter, r *http.Request) (err error) {
 			defer func() {
-				err := recover()
-				if err != nil {
+				if rec := recover(); rec != nil {
 					log.Error().
-						Any("panic", err).
+						Interface("panic", rec).
 						Bytes("stack", debug.Stack()).
 						Msg("panic recovered")
-
-					w.Header().Set("Connection", "close") //successfull close the connection
-					base.WriteJSONError(w, errs.Internal, errors.New("server temporarily unavailable"))
+					err = errs.New(errs.Internal, errors.New("server temporarily unavailable"))
 				}
 			}()
-			next.ServeHTTP(w, r)
+			return next(w, r)
 		}
 	}
 }

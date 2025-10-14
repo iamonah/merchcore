@@ -2,36 +2,39 @@ package users
 
 import (
 	"errors"
-	"fmt"
 	"net/mail"
 	"strings"
 	"time"
 
-	"github.com/IamOnah/storefronthq/internal/domain/shared/phone"
+	"github.com/IamOnah/storefronthq/internal/domain/shared/contact"
 	"github.com/IamOnah/storefronthq/internal/domain/shared/role"
-	"github.com/IamOnah/storefronthq/internal/sdk/authz"
 	"github.com/IamOnah/storefronthq/internal/sdk/errs"
 
 	"github.com/google/uuid"
 )
 
-// some work
+type Provider string
+
+const Local Provider = "local"
+const Google Provider = "google"
+
 type User struct {
 	UserID         uuid.UUID
 	PasswordHash   []byte
 	Email          *mail.Address
 	FirstName      string
 	LastName       string
-	PhoneNumber    phone.PhoneNumber
+	Contact        contact.Contact
 	CreatedAt      time.Time
 	UpdatedAT      time.Time
 	Provider       *string //(local or google)
 	ProviderID     *string
-	Roles          role.Role
+	Role           role.Role
 	IsVerified     bool
-	Country        string
 	DeletedAt      *time.Time
 	IsStoreCreated bool
+	IsEnabled      bool
+	NumOfStore     int
 }
 
 func generateUserID() uuid.UUID {
@@ -44,59 +47,63 @@ func NewUser(userInfo UserCreate) (User, error) {
 	user := User{
 		UserID:     generateUserID(),
 		IsVerified: false,
+		IsEnabled:  false,
 	}
 
 	cleanFirstName := strings.TrimSpace(userInfo.FirstName)
 	if cleanFirstName == "" {
-		fieldErrs.AddFieldError("last_name", errors.New("cannot be emtpy"))
+		fieldErrs.AddFieldError("first_name", errors.New("cannot be empty"))
 	}
 
 	cleanLastName := strings.TrimSpace(userInfo.LastName)
 	if cleanLastName == "" {
-		fieldErrs.AddFieldError("fist_name", errors.New("cannot be empty"))
+		fieldErrs.AddFieldError("last_name", errors.New("cannot be empty"))
 	}
 
-	newPhoneNum := phone.NewPhoneNumber(userInfo.PhoneNumber, userInfo.Country)
-	err := newPhoneNum.ValidateNumber()
-	if err != nil {
-		fieldErrs.AddFieldError("phone_number", fmt.Errorf("invalid: %w", err))
+	newContact := contact.NewContact(userInfo.PhoneNumber, userInfo.Country)
+	if err := newContact.ValidateContact(); err != nil {
+		fieldErrs.AddFieldError("phone_number", err)
 	}
 
 	email, err := mail.ParseAddress(userInfo.Email)
 	if err != nil {
-		fieldErrs.AddFieldError("email", fmt.Errorf("invalid: %w", err))
+		fieldErrs.AddFieldError("email", err)
 	}
 
-	if userInfo.Password != nil {
-		password, err := authz.HashPassword([]byte(*userInfo.Password))
-		if err != nil {
-			fieldErrs.AddFieldError("password", fmt.Errorf("invalid: %w", err))
-		}
-		user.PasswordHash = password
-		*user.Provider = "local"
+	password, err := HashPassword([]byte(userInfo.Password))
+	if err != nil {
+		fieldErrs.AddFieldError("password", err)
 	}
+	user.PasswordHash = password
 
 	if err := fieldErrs.ToError(); err != nil {
 		return User{}, err
 	}
-	//oauth0 provider id and provider set
+
+	// provider logic
 	if userInfo.ProviderID != nil {
 		user.Provider = userInfo.Provider
 		user.ProviderID = userInfo.ProviderID
+	} else {
+		provider := string(Local)
+		user.Provider = &provider
 	}
 
 	user.Email = email
-	user.PhoneNumber = newPhoneNum
+	user.Contact = newContact
 	user.LastName = cleanLastName
 	user.FirstName = cleanFirstName
 	user.CreatedAt = time.Now()
 	user.UpdatedAT = time.Now()
+	user.NumOfStore = 0
+	user.IsStoreCreated = false
+	user.Role = role.Guest
 
 	return user, nil
 }
 
 func (u *User) GetPhoneNumber() string {
-	return u.PhoneNumber.Number
+	return u.Contact.Number
 }
 
 func (u *User) GetEmail() string {
@@ -104,9 +111,5 @@ func (u *User) GetEmail() string {
 }
 
 func (u *User) GetRole() string {
-	return u.Roles.Name
-}
-
-func (u *User) GetUserPermissions() []role.Permission {
-	return u.Roles.Permissions
+	return u.Role.String()
 }

@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"runtime/debug"
@@ -17,35 +16,33 @@ type enviroment string
 const Production enviroment = "production"
 const Developement enviroment = "developement"
 
-func SetupLog(cfg *config.ObservabilityConfig, logService string) (*zerolog.Logger, error) {
+func SetupLog(cfg *config.Config, logService string) (*zerolog.Logger, error) {
 	zerolog.TimeFieldFormat = time.RFC3339
 
-	var env enviroment = enviroment(cfg.Environment)
-	level := initLevel(cfg.GetLogLevel())
+	var env enviroment = enviroment(cfg.Primary.Env)
+	level := initLevel(cfg.Logging.Level)
 	zerolog.SetGlobalLevel(level)
 
 	var output io.Writer
 	if level.String() == "info" && env == Production {
 		//logService
 	} else {
-		output = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
+		// output = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
+		output = os.Stdout
 	}
 
-	build, ok := debug.ReadBuildInfo()
-	if ok {
-		return nil, fmt.Errorf("no github.com/IamOnah/storefronthqinfo")
-	}
+	build, _ := debug.ReadBuildInfo()
 
 	logger := zerolog.New(output).With().Timestamp().Logger()
-	logger.UpdateContext(func(c zerolog.Context) zerolog.Context {
-		return c.Int("pid", os.Getpid()).
-			Str("go_version", build.GoVersion).
-			Str("service", cfg.ServiceName).
-			Str("environment", string(env))
-	})
+	logger = logger.With().
+		Int("pid", os.Getpid()).
+		Str("go_version", build.GoVersion).
+		Str("service", cfg.Observability.ServiceName).
+		Str("environment", string(env)).
+		Logger()
 
 	// Include stack traces for errors in development
-	if !cfg.IsProduction() {
+	if !cfg.Observability.IsProduction() {
 		logger = logger.With().Stack().Logger()
 	}
 

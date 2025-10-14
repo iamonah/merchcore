@@ -22,14 +22,17 @@ migrations:
 ## migrations-up: Apply up migrations
 .PHONY: migrations-up
 migrations-up:
-	@echo running up migrations
-	tern mig
+	@echo "Running up migrations..."
+	tern migrate --migrations internal/infra/database/migrations
 
-## migrations-down: Apply down migrations
+## migrations-down: Roll back the last applied migration
 .PHONY: migrations-down
 migrations-down:
-	@echo running down migrations
-	migrate -database=$(DSN) -path=./internal/db/migrations -verbose down
+	@echo "Running down migrations..."
+	tern migrate \
+		--conn-string "postgres://admin:secret@localhost:5432/storefronthq?sslmode=disable" \
+		--migrations internal/infra/database/migrations \
+		--destination 0
 
 ## migrations-force version=<version>: Force migrations to a version
 .PHONY: migrations-force
@@ -79,7 +82,7 @@ clean:
 .PHONY: mock
 mock:
 	mockgen -package mockdb -destination $(filename) build/internal/domain/users $(interface-name)
-	mockgen -package mockdb -destination ./internal/domain/user/userstore/mock/user.go build/internal/domain/users UserRepository
+	mockgen -package mockdb -destination ./internal/domain/user/userdb/mock/user.go build/internal/domain/users UserRepository
 
 
 ## redis: run the redis client   
@@ -111,3 +114,22 @@ compose-down:
 .PHONY: compose-test
 compose-test:
 	docker compose -f docker-compose.yaml -f docker-compose-test.yaml run --build simplebank
+
+
+# docker run -d   \
+# 	--name redis-storefronthq \
+# 	-p 6379:6379 \
+# 	-v redisdata:/data \
+# 	redis:8.2.0-alpine \
+# 	redis-server --requirepass redis1234
+
+
+
+# docker run -d \
+#   --name postgres-storefronthq \
+#   -e POSTGRES_USER=admin \
+#   -e POSTGRES_PASSWORD=secret \
+#   -e POSTGRES_DB=storefronthq \
+#   -p 5432:5432 \
+#   -v storehqdata:/var/lib/postgresql/data \
+#   postgres:18.0

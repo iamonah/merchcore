@@ -1,86 +1,78 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
-	"time"
-
-	"github.com/IamOnah/storefronthq/internal/sdk/base"
-
-	"github.com/google/uuid"
-	"github.com/rs/zerolog"
 )
+
+//contains a wrapped reponsewriter so we can capture statuscode
 
 type RequestID struct{}
 
 var RequestIdKey = RequestID{}
 
-type newResponseWriter struct {
+type ResponseWriter struct {
 	http.ResponseWriter
-	statusCode    int
-	headerWritten bool
+	StatusCode    int
+	HeaderWritten bool
 }
 
-func NewResponseWriter(w http.ResponseWriter) *newResponseWriter {
-	return &newResponseWriter{
+func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
+	return &ResponseWriter{
 		ResponseWriter: w,
 	}
 }
 
-func (m *newResponseWriter) Write(b []byte) (int, error) {
-	if !m.headerWritten {
-		m.statusCode = http.StatusOK
-		m.headerWritten = true
+func (m *ResponseWriter) Write(b []byte) (int, error) {
+	if !m.HeaderWritten {
+		m.StatusCode = http.StatusOK
+		m.HeaderWritten = true
 	}
 
 	return m.ResponseWriter.Write(b)
 }
 
-func (m *newResponseWriter) WriteHeader(statuscode int) {
-	m.ResponseWriter.WriteHeader(statuscode)
-
-	if !m.headerWritten {
-		m.statusCode = statuscode
-		m.headerWritten = true
+func (m *ResponseWriter) WriteHeader(statusCode int) {
+	if m.HeaderWritten {
+		return
 	}
+
+	m.StatusCode = statusCode
+	m.HeaderWritten = true
+	m.ResponseWriter.WriteHeader(statusCode)
 }
 
-func (m *newResponseWriter) Unwrap() http.ResponseWriter {
+func (m *ResponseWriter) Unwrap() http.ResponseWriter {
 	return m.ResponseWriter
 }
 
-func RequestLogger(log *zerolog.Logger) base.Middlware {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			start := time.Now()
+// func RequestLogger(log *zerolog.Logger) base.Middleware {
+// 	return func(next base.HTTPHandlerWithErr) base.HTTPHandlerWithErr {
+// 		return func(w http.ResponseWriter, r *http.Request) error {
+// 			start := time.Now()
 
-			reqID := r.Header.Get("X-Request-ID")
-			if reqID == "" {
-				reqID = uuid.New().String()
-			}
+// 			reqID := r.Context().Value(RequestIdKey).(string)
+// 			ip := base.GetClientIP(r)
 
-			ctx := context.WithValue(r.Context(), RequestIdKey, reqID)
-			nwr := NewResponseWriter(w)
-			next(nwr, r.WithContext(ctx))
+// 			nwr := NewResponseWriter(w)
+// 			defer func() {
+// 				event := log.Info()
+// 				if nwr.statusCode >= 500 {
+// 					event = log.Error()
+// 				}
+// 				event.
+// 					Str("request_id", reqID).
+// 					Str("method", r.Method).
+// 					Str("url", r.URL.Path).
+// 					Str("client_ip", ip).
+// 					Str("user_agent", r.UserAgent()).
+// 					Int("status_code", nwr.statusCode).
+// 					Dur("latency", time.Since(start)).
+// 					Msg("incoming request")
+// 			}()
 
-			ip := base.GetClientIP(r)
-
-			event := log.Info()
-
-			if nwr.statusCode >= 500 {
-				event = log.Error()
-			}
-
-			event.
-				Str("request_id", reqID).
-				Str("method", r.Method).
-				Str("url", r.URL.Path).
-				Str("query", r.URL.RawQuery).
-				Str("client_ip", ip).
-				Str("user_agent", r.UserAgent()).
-				Int("status_code", nwr.statusCode).
-				Dur("latency", time.Since(start)).
-				Msg("incoming request")
-		}
-	}
-}
+// 			err := next(nwr, r)
+// 			fmt.Println(nwr.statusCode)
+// 			return err
+// 		}
+// 	}
+// }

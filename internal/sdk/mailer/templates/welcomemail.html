@@ -3,7 +3,6 @@
 {{define "htmlBody"}}
 <!doctype html>
 <html>
-
 <head>
    <meta name="viewport" content="width=device-width" />
    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -27,45 +26,53 @@
       }
    </style>
 </head>
-
-<body>
+<body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
    <div class="container">
-      <p>Hi {{.name}},</p>
-      <p>Welcome to <strong>StoreFrontHq</strong> 🎉 — we’re excited to help you create and grow your business!</p>
+      <h2>Hi {{.FirstName}},</h2>
+      <p>Welcome to <strong>StoreFrontHq</strong> 🎉 — we’re thrilled to have you on board!</p>
 
-      <p>To finish setting up your account, please verify your email address using the code below:</p>
+      <p>To complete your account setup, please verify your email address using the code below:</p>
 
-      <div class="code-box">
-         {{.activationToken}}
+      <div class="code-box" style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; text-align: center; font-size: 20px; font-weight: bold; margin: 20px 0;">
+         {{.Code}}
       </div>
 
-      <p>This code will expire in <strong>1:30 minutes</strong>, so be sure to use it soon.</p>
+      <p>This code will expire in <strong>15 minutes</strong>, so please use it soon.</p>
 
       <p>If you didn’t sign up for StoreFrontHq, you can safely ignore this email.</p>
 
-      <p>Thanks,<br>
-      The StoreFrontHq Team</p>
+      <hr style="margin: 30px 0;" />
+
+      <p style="font-size: 14px; color: #555;">
+         Need help? Reply to this email or contact us at
+         <a href="mailto:support@storefronthq.com">support@storefronthq.com</a>.
+      </p>
+
+      <p>Best regards,<br><strong>The StoreFrontHq Team</strong><br>
+      <!-- <a href="https://www.storefronthq.com">www.storefronthq.com</a></p> -->
    </div>
 </body>
-
 </html>
 {{end}}
 
-
 {{define "plainBody"}}
-Hi {{.name}},
+Hi {{.FirstName}},
 
-Welcome to StoreFrontHq 🎉 — we’re excited to help you create and grow your business!
+Welcome to StoreFrontHq 🎉 — we’re thrilled to have you on board!
 
-To finish setting up your account, please verify your email address using the code below:
+To complete your account setup, please verify your email address using the code below:
 
-{{.activationToken}}
+{{.Code}}
 
-This code will expire in 1:30 minutes, so be sure to use it soon.
+This code will expire in 15 minutes, so please use it soon.
 
 If you didn’t sign up for StoreFrontHq, you can safely ignore this email.
 
-Thanks,
-The StoreFrontHq Team
-{{end}}
+---
 
+Need help? Reply to this email or contact us at support@storefronthq.com.
+
+Best regards,
+The StoreFrontHq Team
+<!-- www.storefronthq.com -->
+{{end}}

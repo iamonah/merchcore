@@ -2,7 +2,6 @@ package auth
 
 import (
 	"github.com/IamOnah/storefronthq/internal/domain/users"
-	"github.com/IamOnah/storefronthq/internal/infra/database"
 	"github.com/IamOnah/storefronthq/internal/sdk/authz"
 	"github.com/IamOnah/storefronthq/internal/sdk/jobs"
 
@@ -10,11 +9,10 @@ import (
 )
 
 type UserService struct {
-	users users.UserRepository
 	auth  authz.JWTAuthMaker
 	log   *zerolog.Logger
 	job   jobs.JobService
-	trx   database.TransactorTX
+	users *users.UserBusiness
 }
 
 type UserConfiguration func(us *UserService) error
@@ -30,9 +28,9 @@ func NewUserService(cfgs ...UserConfiguration) (*UserService, error) {
 	return os, nil
 }
 
-func WithUserRepository(ur users.UserRepository) UserConfiguration {
+func WithUserBusiness(ub *users.UserBusiness) UserConfiguration {
 	return func(us *UserService) error {
-		us.users = ur
+		us.users = ub
 		return nil
 	}
 }
@@ -54,13 +52,6 @@ func WithLog(log *zerolog.Logger) UserConfiguration {
 func WithJob(job *jobs.JobClient) UserConfiguration {
 	return func(us *UserService) error {
 		us.job = job
-		return nil
-	}
-}
-
-func WithTrxManager(trxManager *database.TRXManager) UserConfiguration {
-	return func(us *UserService) error {
-		us.trx = trxManager
 		return nil
 	}
 }

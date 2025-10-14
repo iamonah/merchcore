@@ -8,7 +8,7 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-func (rt *JobProcessor) JobSendVerifyEmail(ctx context.Context, t *asynq.Task) error {
+func (rt *JobProcessor) DoWelcomeEmailJob(ctx context.Context, t *asynq.Task) error {
 	var payload VerifyEmailPayload
 	err := json.Unmarshal(t.Payload(), &payload)
 	if err != nil {
@@ -19,10 +19,13 @@ func (rt *JobProcessor) JobSendVerifyEmail(ctx context.Context, t *asynq.Task) e
 		return fmt.Errorf("bad payload: %w", asynq.SkipRetry)
 	}
 
-	//Todo: send email to user
+	err = rt.mailer.Send("welcomemail.html", payload.Email, payload)
+	if err != nil {
+		return fmt.Errorf("sendwelcomeemail: %w", err)
+	}
 	rt.logger.Info().
 		Str("type", t.Type()).
-		// Str("to", user.Email.String()).
-		Msg("JobSendVerifyEmail: successfully sent verification email")
+		Str("to", payload.Email).
+		Msg("dowelcomeemailjob: successfully sent verification email")
 	return nil
 }

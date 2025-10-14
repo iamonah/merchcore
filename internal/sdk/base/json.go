@@ -13,17 +13,22 @@ import (
 
 // encoding
 func WriteJSON(w http.ResponseWriter, status int, data interface{}) error {
+	// 204 means "No Content", so skip writing a body.
+	if status == http.StatusNoContent {
+		w.WriteHeader(http.StatusNoContent)
+		return nil
+	}
+
 	jsonData, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		return fmt.Errorf("marshal data: %w", err)
 	}
-	jsonData = append(jsonData, '\n')
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_, err = w.Write(jsonData)
-	if err != nil {
-		return err
+
+	if _, err = w.Write(jsonData); err != nil {
+		return fmt.Errorf("write response: %w", err)
 	}
 	return nil
 }
@@ -34,7 +39,7 @@ func ReadJSON(r *http.Request, dst interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(body, &dst)
+	err = json.Unmarshal(body, dst)
 	if err != nil {
 		return err
 	}
@@ -42,35 +47,30 @@ func ReadJSON(r *http.Request, dst interface{}) error {
 }
 
 // encode-errors
-func WriteJSONError(w http.ResponseWriter, status errs.ErrCode, errors error) {
-	errText := errs.CodeNames[status]
-	code := errs.HTTPStatus[status]
-	appError := errs.AppErr{
-		Code:    code,
-		Err:     errText,
-		Details: errors.Error(),
-	}
-	err := WriteJSON(w, code, appError)
-	if err != nil {
-		log.Error().Err(err).Msg("writeJSONError")
-		w.Header().Add("Connection", "close")
-		w.WriteHeader(http.StatusInternalServerError)
+func WriteJSONError(w http.ResponseWriter, errvalue error) {
+	err, ok := errvalue.(*errs.AppErr)
+	if ok {
+		err := WriteJSON(w, err.Code, err)
+		if err != nil {
+			log.Error().Err(err).Msg("writejson")
+			w.Header().Add("Connection", "close")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		return
 	}
+	WriteJSONInternalError(w)
+
 }
 
-func WriteJSONInternalError(w http.ResponseWriter, status errs.ErrCode) {
-	errText := errs.CodeNames[status]
-	code := errs.HTTPStatus[status]
+func WriteJSONInternalError(w http.ResponseWriter) {
 	appError := errs.AppErr{
-		Code: code,
-		Err:  errText,
+		Code:    http.StatusInternalServerError,
+		Message: http.StatusText(http.StatusInternalServerError),
 	}
-	err := WriteJSON(w, code, appError)
-	if err != nil {
-		log.Error().Err(err).Msg("writeJSONError")
-		w.Header().Add("Connection", "close")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+
+	err := WriteJSON(w, http.StatusInternalServerError, appError)
+	log.Error().Err(err).Msg("writejson")
+	w.Header().Add("Connection", "close")
+	w.WriteHeader(http.StatusInternalServerError)
 }

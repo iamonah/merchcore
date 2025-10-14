@@ -14,15 +14,16 @@ var ErrExpired = errors.New("token expired")
 type JWTData struct {
 	Duration    time.Duration
 	UserID      uuid.UUID
-	RoleId      string
+	Role        string
 	ServiceName string
 }
 
-func NewJWTData(userid uuid.UUID, roleid string, duration time.Duration) JWTData {
+func NewJWTData(userid uuid.UUID, role string, duration time.Duration, svcName string) JWTData {
 	return JWTData{
-		UserID:   userid,
-		RoleId:   roleid,
-		Duration: duration,
+		UserID:      userid,
+		Role:        role,
+		Duration:    duration,
+		ServiceName: svcName,
 	}
 }
 
@@ -56,14 +57,14 @@ type JWTAuthMaker struct {
 	SemetricKey string
 }
 
-func NewJWTMaker(key string) JWTAuthMaker{
+func NewJWTMaker(key string) JWTAuthMaker {
 	return JWTAuthMaker{
 		SemetricKey: key,
 	}
 }
 
 func (jta *JWTAuthMaker) GenerateToken(data JWTData) (string, *Payload, error) {
-	payloadData, err := NewPayload(data.UserID, data.RoleId, data.Duration, data.ServiceName)
+	payloadData, err := NewPayload(data.UserID, data.Role, data.Duration, data.ServiceName)
 	if err != nil {
 		return "", nil, fmt.Errorf("generate token: %w", err)
 	}

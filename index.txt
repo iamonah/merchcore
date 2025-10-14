@@ -37,3 +37,8 @@
 
 signup
 setupstore
+
+
+
+('staff',        'Store staff with limited permissions'),
+('customer',     'Registered user without a store'),

@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-type ErrCode int8
+type ErrCode int
 
 const (
 	None ErrCode = iota

@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/tern/v2/migrate"
 )
 
-//go:embed migrations
+//go:embed migrations/*.sql
 var migrationFS embed.FS
 
 func virtualFs() (fs.FS, error) {

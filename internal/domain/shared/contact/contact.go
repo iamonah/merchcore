@@ -1,4 +1,4 @@
-package phone
+package contact
 
 import (
 	"errors"
@@ -7,18 +7,19 @@ import (
 	"github.com/nyaruka/phonenumbers"
 )
 
-type PhoneNumber struct {
+type Contact struct {
 	Number  string
 	Country string
 }
 
-func NewPhoneNumber(num, country string) PhoneNumber {
-	return PhoneNumber{
+func NewContact(num, country string) Contact {
+	return Contact{
 		Number:  num,
 		Country: country,
 	}
 }
-func (ph *PhoneNumber) ValidateNumber() error {
+
+func (ph *Contact) ValidateContact() error {
 	num, err := phonenumbers.Parse(ph.Number, ph.Country)
 	if err != nil {
 		return fmt.Errorf("unable to parse %s for region %s: %w", ph.Number, ph.Country, err)
@@ -37,10 +38,10 @@ func (ph *PhoneNumber) ValidateNumber() error {
 	return nil
 }
 
-func (ph *PhoneNumber) GetPhoneNumber() string {
+func (ph *Contact) GetPhoneNumber() string {
 	return ph.Number
 }
 
-func (ph *PhoneNumber) GetCountry() string {
+func (ph *Contact) GetCountry() string {
 	return ph.Country
 }

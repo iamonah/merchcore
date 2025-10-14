@@ -2,21 +2,24 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Primary       Primary              `mapstructure:"PRIMARY" validate:"required"`
-	Server        ServerConfig         `mapstructure:"SERVER" validate:"required"`
-	Database      DatabaseConfig       `mapstructure:"DATABASE" validate:"required"`
-	Auth          AuthConfig           `mapstructure:"AUTH" validate:"required"`
-	Redis         RedisConfig          `mapstructure:"REDIS" validate:"required"`
-	Mailer        MailerConfig         `mapstructure:"MAILER" validate:"required"`
-	Observability *ObservabilityConfig `mapstructure:"OBSERVABILITY"`
-	AWSS3         AWSS3Config          `mapstructure:"AWSS3" validate:"required"`
+	Primary       Primary             `mapstructure:"PRIMARY"`
+	Server        ServerConfig        `mapstructure:"SERVER"`
+	Database      DatabaseConfig      `mapstructure:"DATABASE"`
+	Auth          AuthConfig          `mapstructure:"AUTH"`
+	Redis         RedisConfig         `mapstructure:"REDIS"`
+	Mailer        MailerConfig        `mapstructure:"MAILER"`
+	Observability ObservabilityConfig `mapstructure:"OBSERVABILITY"`
+	AWSS3         AWSS3Config         `mapstructure:"AWSS3"`
+	HealthChecks  HealthChecksConfig  `mapstructure:"HEALTH_CHECKS"`
+	Logging       LoggingConfig       `mapstructure:"LOGGING"`
+	NewRelic      NewRelicConfig      `mapstructure:"NEW_RELIC"`
 }
 
 type Primary struct {
@@ -65,7 +68,35 @@ type AWSS3Config struct {
 	AccessKeyID     string `mapstructure:"ACCESS_KEY_ID" validate:"required"`
 	SecretAccessKey string `mapstructure:"SECRET_ACCESS_KEY" validate:"required"`
 	UploadBucket    string `mapstructure:"UPLOAD_BUCKET" validate:"required"`
-	EndpointURL     string `mapstructure:"ENDPOINT_URL"`
+	EndpointURL     string `mapstructure:"ENDPOINT_URL" validate:"required"`
+}
+
+// transformFlatToNested will scan viper.AllKeys() and for any key that contains
+// an underscore it will split at the first underscore and re-set a nested key in viper.
+// Example:
+//
+//	observability_new_relic_enabled -> viper.Set("observability.new_relic_enabled", value)
+func transformFlatToNested() {
+	keys := viper.AllKeys()
+
+	for _, k := range keys {
+		if strings.Contains(k, ".") || !strings.Contains(k, "_") {
+			continue
+		}
+
+		parts := strings.SplitN(k, "_", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		section := parts[0]
+		rest := parts[1]
+
+		nestedKey := fmt.Sprintf("%s.%s", section, rest)
+
+		val := viper.Get(k)
+		viper.Set(nestedKey, val)
+	}
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -81,28 +112,27 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("reading config file: %v", err)
 	}
 
+	transformFlatToNested()
+
 	err = viper.Unmarshal(&config)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshalling config: %v", err)
+		return nil, fmt.Errorf("unmarshalling config: %w", err)
 	}
 
-	validate := validator.New()
+	// for _, key := range viper.AllKeys() {
+	// 	fmt.Printf("%s = %v\n", key, viper.Get(key))
+	// }
 
-	err = validate.Struct(config)
-	if err != nil {
-		return nil, fmt.Errorf("config validation failed")
-	}
+	// fmt.Printf("%+v", config)
+	// validate := validator.New()
 
-	if config.Observability == nil {
-		config.Observability = DefaultObservabilityConfig()
-	}
+	// err = validate.Struct(config)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("config validation failed: %w", err)
+	// }
 
-	config.Observability.ServiceName = ""
-	config.Observability.Environment = config.Primary.Env
-
-	if err := config.Observability.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid observability config")
-	}
-
+	// if config.Observability == nil {
+	// 	config.Observability = DefaultObservabilityConfig()
+	// }
 	return &config, nil
 }

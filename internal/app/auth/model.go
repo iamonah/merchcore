@@ -9,12 +9,12 @@ import (
 )
 
 type UserCreateReq struct {
-	Password    *string `json:"password" validate:"required"`
-	Email       string  `json:"email" validate:"required"`
-	PhoneNumber string  `json:"phone_number" validate:"required"`
-	Country     string  `json:"country" validate:"required"`
-	FirstName   string  `json:"first_name" validate:"required"`
-	LastName    string  `json:"last_name" validate:"required"`
+	Password    string `json:"password" validate:"required"`
+	Email       string `json:"email" validate:"required"`
+	PhoneNumber string `json:"phone_number" validate:"required"`
+	Country     string `json:"country" validate:"required"`
+	FirstName   string `json:"first_name" validate:"required"`
+	LastName    string `json:"last_name" validate:"required"`
 }
 
 type UserCreateResp struct {
@@ -41,6 +41,8 @@ func toCreateUser(ur UserCreateReq) users.UserCreate {
 		Email:       ur.Email,
 		PhoneNumber: ur.PhoneNumber,
 		Country:     ur.Country,
+		FirstName:   ur.FirstName,
+		LastName:    ur.LastName,
 	}
 }
 
@@ -75,14 +77,15 @@ func toUserResp(u users.User) UserResp {
 		Email:          u.Email.Address,
 		FirstName:      u.FirstName,
 		LastName:       u.LastName,
-		Phone:          u.PhoneNumber.Number,
-		Country:        u.Country,
+		Phone:          u.Contact.Number,
+		Country:        u.Contact.Country,
 		Roles:          u.GetRole(),
 		IsVerified:     u.IsVerified,
 		Provider:       u.Provider,
 		CreatedAt:      u.CreatedAt,
 		UpdatedAt:      u.UpdatedAT,
 		IsStoreCreated: u.IsStoreCreated,
+		NumOfStore:     u.NumOfStore,
 	}
 }
 

@@ -19,30 +19,26 @@ const (
 	AuthContextPayloadKey   AuthKey = "authorization_payload"
 )
 
-func AuthBearer(authMaker authz.TokenMaker) base.Middlware {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
+func AuthBearer(authMaker authz.TokenMaker) base.Middleware {
+	return func(next base.HTTPHandlerWithErr) base.HTTPHandlerWithErr {
+		return func(w http.ResponseWriter, r *http.Request) error {
 			authHeader := r.Header.Get(string(AuthHeaderAuthorization))
 			if authHeader == "" {
-				base.WriteJSONError(w, errs.Unauthenticated, errors.New("no auth header"))
-				return
+				return errs.New(errs.Unauthenticated, errors.New("missing authorization header"))
 			}
 
-			authParams := strings.Fields(authHeader)
-			if len(authParams) != 2 || AuthKey(authParams[0]) != AuthTypeBearer {
-				base.WriteJSONError(w, errs.Unauthenticated, errors.New("malformed auth header"))
-				return
+			parts := strings.Fields(authHeader)
+			if len(parts) != 2 || AuthKey(parts[0]) != AuthTypeBearer {
+				return errs.New(errs.Unauthenticated, errors.New("malformed authorization header"))
 			}
 
-			accessToken := authParams[1]
-			payload, err := authMaker.VerifyToken(accessToken)
+			payload, err := authMaker.VerifyToken(parts[1])
 			if err != nil {
-				base.WriteJSONError(w, errs.Unauthenticated, errors.New("invalid token"))
-				return
+				return errs.New(errs.Unauthenticated, errors.New("invalid or expired token"))
 			}
 
 			ctx := context.WithValue(r.Context(), AuthContextPayloadKey, payload)
-			next(w, r.WithContext(ctx))
+			return next(w, r.WithContext(ctx))
 		}
 	}
 }

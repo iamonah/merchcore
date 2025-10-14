@@ -2,30 +2,84 @@ package errs
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"runtime"
 )
 
 type AppErr struct {
-	Code    int    `json:"code"`
-	Err     string `json:"error"`
-	Details string `json:"details,omitempty"`
+	Code    int         `json:"code"`
+	Message string      `json:"message,omitempty"`
+	Fields  FieldErrors `json:"fields,omitempty"`  
+	FuncName string     `json:"-"`
+	FileName string     `json:"-"`
 }
 
-func (appErr *AppErr) String() string {
-	return fmt.Sprintf("error: %s, details: %s", appErr.Err, appErr.Details)
-}
-
-func (appErr *AppErr) Error() string {
-	d, err := json.Marshal(appErr)
+func (e *AppErr) Error() string {
+	byte, err := json.Marshal(e)
 	if err != nil {
 		return err.Error()
 	}
-	return string(d)
+	return string(byte)
+}
+
+func New(code ErrCode, err error) *AppErr {
+	pc, filename, line, _ := runtime.Caller(1)
+
+	var fields *FieldErrors
+	if errors.As(err, &fields) && len(*fields) > 0 {
+		return &AppErr{
+			Code:     HTTPStatus[code],
+			Message:  "Validation failed",  
+			Fields:   *fields,              
+			FuncName: runtime.FuncForPC(pc).Name(),
+			FileName: fmt.Sprintf("%s:%d", filename, line),
+		}
+	}
+
+	return &AppErr{
+		Code:     HTTPStatus[code],
+		Message:  err.Error(),
+		FuncName: runtime.FuncForPC(pc).Name(),
+		FileName: fmt.Sprintf("%s:%d", filename, line),
+	}
+}
+
+func Newf(code ErrCode, format string, v ...any) *AppErr {
+	pc, filename, line, _ := runtime.Caller(1)
+
+	return &AppErr{
+		Code:     HTTPStatus[code],
+		Message:  fmt.Errorf(format, v...).Error(),
+		FuncName: runtime.FuncForPC(pc).Name(),
+		FileName: fmt.Sprintf("%s:%d", filename, line),
+	}
+}
+
+type DomainError struct {
+	Msg  error
+	Code ErrCode
+}
+
+func (e *DomainError) Error() string {
+	return e.Msg.Error()
+}
+
+func NewDomainError(code ErrCode, msg error) error {
+	return &DomainError{Code: code, Msg: msg}
+}
+
+func IsDomainError(err error) (*DomainError, bool) {
+	var dError *DomainError
+	if errors.As(err, &dError) {
+		return dError, true
+	}
+	return nil, false
 }
 
 type FieldError struct {
 	Field string `json:"field"`
-	Err   string `json:"message"`
+	Err   string `json:"error"`
 }
 
 type FieldErrors []FieldError
@@ -35,21 +89,20 @@ func NewFieldErrors() *FieldErrors {
 }
 
 func (fe *FieldErrors) AddFieldError(field string, err error) {
-	newerror := FieldError{
+	*fe = append(*fe, FieldError{
 		Field: field,
 		Err:   err.Error(),
-	}
-	*fe = append(*fe, newerror)
+	})
 }
 
-func (fe *FieldErrors) ToError() *AppErr {
+func (fe *FieldErrors) ToError() error {
 	if len(*fe) != 0 {
-		return NewAppErr(InvalidArgument, fe)
+		return fe 
 	}
 	return nil
 }
 
-func (fe FieldErrors) Error() string {
+func (fe *FieldErrors) Error() string {
 	d, err := json.Marshal(fe)
 	if err != nil {
 		return err.Error()
@@ -57,13 +110,6 @@ func (fe FieldErrors) Error() string {
 	return string(d)
 }
 
-func NewAppErr(code ErrCode, err error) *AppErr {
-	name := CodeNames[code]
-	statusCode := HTTPStatus[code]
-
-	return &AppErr{
-		Code:    statusCode,
-		Err:     name,
-		Details: err.Error(),
-	}
-}
+// func (fe FieldErrors) MarshalJSON() ([]byte, error) {
+// 	return json.Marshal([]FieldError(fe))
+// }

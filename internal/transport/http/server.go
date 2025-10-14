@@ -17,7 +17,7 @@ import (
 
 func StartServer(cfg *config.Config, mux http.Handler, log *zerolog.Logger) error {
 	server := http.Server{
-		Addr:         cfg.Server.Port,
+		Addr:         fmt.Sprintf(":%s", cfg.Server.Port),
 		Handler:      mux,
 		ReadTimeout:  cfg.Server.ReadTimeout,
 		IdleTimeout:  cfg.Server.IdleTimeout,

@@ -1,73 +1,35 @@
 package role
 
+import "fmt"
 
-type Permission struct {
-	ID   int
-	Code string
-	Name string
-}
+var (
+	SystemAdmin = newRole("system_admin")
+	Admin       = newRole("admin")
+	StoreOwner  = newRole("store_owner")
+	StoreAdmin  = newRole("store_admin")
+	Staff       = newRole("staff")
+	Customer    = newRole("customer")
+	Guest       = newRole("guest")
+)
+
+var roles = make(map[string]Role)
 
 type Role struct {
-	ID          int
-	Code        string
-	Name        string
-	Permissions []Permission
+	value string
 }
 
-// RolePermissionsSeed maps roles to their assigned permissions
-var RolePermissionsSeed = map[string][]string{
-    "system_admin": {
-        "system:tenant:create",
-        "system:tenant:read",
-        "system:user:manage",
-    },
-
-    "admin": {
-        "system:tenant:read",
-    },
-
-    "store_owner": {
-        "store:manage",
-        "product:write",
-        "product:read",
-        "order:write",
-        "order:read",
-        "payment:write",
-        "payment:read",
-        "report:read",
-    },
-
-    "store_admin": {
-        "product:write",
-        "product:read",
-        "order:write",
-        "order:read",
-        "payment:write",
-        "payment:read",
-        "report:read",
-    },
-
-    "staff": {
-        "product:write",
-        "product:read",
-        "order:write",
-        "order:read",
-        "payment:read",
-    },
-
-    "customer": {
-        "product:read",
-        "order:read",
-        "order:write",   // cancel included
-        "payment:read",
-    },
+func newRole(v string) Role {
+	r := Role{v}
+	roles[v] = r
+	return r
 }
 
+func (r Role) String() string { return r.value }
 
-// system_admin = root operator of your SaaS (rare, trusted accounts).
-
-// admin = platform admin with visibility and support powers, but not root.
-
-// store_owner = tenant root (for their own org).
-
-// store_admin/staff/customer = scoped to their store.
+func Parse(v string) (Role, error) {
+	r, ok := roles[v]
+	if !ok {
+		return Role{}, fmt.Errorf("invalid role: %q", v)
+	}
+	return r, nil
+}

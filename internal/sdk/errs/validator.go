@@ -16,17 +16,14 @@ func NewValidate(data any) error {
 	if err != nil {
 		validationErrors, ok := err.(validator.ValidationErrors)
 		if ok {
-			for _, err := range validationErrors {
-				switch err.Tag() {
+			for _, verr := range validationErrors {
+				switch verr.Tag() {
 				case "required":
-					fe.AddFieldError(strings.ToLower(err.Field()), errors.New("field is required"))
+					fe.AddFieldError(strings.ToLower(verr.Field()), errors.New("field is required"))
 				}
 			}
 		}
 	}
 
-	if len(*fe) != 0 {
-		return fe
-	}
-	return nil
+	return fe.ToError()
 }

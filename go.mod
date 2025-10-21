@@ -11,6 +11,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/jackc/tern/v2 v2.3.3
 	github.com/nyaruka/phonenumbers v1.6.5
+	github.com/redis/go-redis/v9 v9.7.0
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/viper v1.21.0
 	go.uber.org/mock v0.6.0
@@ -50,7 +51,6 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
-	github.com/redis/go-redis/v9 v9.7.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect

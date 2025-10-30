@@ -1,6 +1,6 @@
 ## MerchCore SaaS E-Commerce Platform
 
-**Storefront** is a modern SaaS e-commerce platform that enables small businesses to effortlessly create and manage online stores. It provides secure payment options using both stablecoins and traditional **FIAT**, giving merchants flexibility in how they operate and customers freedom in how they pay.
+A modern SaaS e-commerce platform that enables small businesses to effortlessly create and manage online stores. It provides secure payment options using both stablecoins and traditional **FIAT**, giving merchants flexibility in how they operate and customers freedom in how they pay.
 
 Built with **Go** and following Clean Architecture principles, Storefront separates its core domain logic from infrastructure, ensuring scalability, maintainability, and testability.
 

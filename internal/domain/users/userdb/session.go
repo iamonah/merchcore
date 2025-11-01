@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	users "github.com/IamOnah/storefronthq/internal/domain/users"
-	"github.com/IamOnah/storefronthq/internal/infra/database"
+	users "github.com/iamonah/merchcore/internal/domain/users"
+	"github.com/iamonah/merchcore/internal/infra/database"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -33,7 +33,7 @@ func (us *userdb) CreateSession(ctx context.Context, s *users.Session) error {
 	)
 
 	if err != nil {
-		return fmt.Errorf("createsession: %w: %w", users.ErrDatabase, err)
+		return fmt.Errorf("%w: %w", users.ErrDatabase, err)
 	}
 
 	return nil
@@ -48,7 +48,7 @@ func (us *userdb) CreateToken(ctx context.Context, otp *users.Token) error {
 
 	_, err := conn.Exec(ctx, query, otp.TokenHash[:], otp.UserID, otp.Expiry, otp.Scope)
 	if err != nil {
-		return fmt.Errorf("insert otp: %w", err)
+		return fmt.Errorf("%w: %w", users.ErrDatabase, err)
 	}
 	return nil
 }
@@ -141,7 +141,7 @@ func (us *userdb) GetSession(ctx context.Context, sessionID string) (*users.Sess
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, users.ErrSessionNotFound
 		}
-		return nil, fmt.Errorf("getsession: %w: %w", users.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %w", users.ErrDatabase, err)
 	}
 
 	return &s, nil

@@ -1,17 +1,17 @@
 package main
 
 import (
-	"github.com/IamOnah/storefronthq/internal/app/auth"
-	"github.com/IamOnah/storefronthq/internal/config"
-	"github.com/IamOnah/storefronthq/internal/domain/users"
-	"github.com/IamOnah/storefronthq/internal/domain/users/userdb"
-	"github.com/IamOnah/storefronthq/internal/infra/database"
-	"github.com/IamOnah/storefronthq/internal/sdk/authz"
-	"github.com/IamOnah/storefronthq/internal/sdk/jobs"
-	"github.com/IamOnah/storefronthq/internal/sdk/logger"
-	"github.com/IamOnah/storefronthq/internal/sdk/mailer"
-	transport "github.com/IamOnah/storefronthq/internal/transport/http"
-	"github.com/IamOnah/storefronthq/internal/transport/http/router"
+	"github.com/iamonah/merchcore/internal/app/auth"
+	"github.com/iamonah/merchcore/internal/config"
+	"github.com/iamonah/merchcore/internal/domain/users"
+	"github.com/iamonah/merchcore/internal/domain/users/userdb"
+	"github.com/iamonah/merchcore/internal/infra/database"
+	"github.com/iamonah/merchcore/internal/sdk/authz"
+	"github.com/iamonah/merchcore/internal/sdk/jobs"
+	"github.com/iamonah/merchcore/internal/sdk/logger"
+	"github.com/iamonah/merchcore/internal/sdk/mailer"
+	transport "github.com/iamonah/merchcore/internal/transport/http"
+	"github.com/iamonah/merchcore/internal/transport/http/router"
 
 	"github.com/rs/zerolog/log"
 )
@@ -19,32 +19,31 @@ import (
 func main() {
 	cfg, err := config.LoadConfig(".")
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to load configurations")
+		log.Fatal().Err(err).Msg("config load failed")
 	}
-	log.Info().Msg("configurations succesfully initialized")
+	log.Info().Msg("config loaded")
 
 	logger, err := logger.SetupLog(cfg, cfg.Observability.ServiceName)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to setup logging:")
+		log.Fatal().Err(err).Msg("log setup failed")
 	}
-	log.Info().Msg("logging system initialized successfully")
+	log.Info().Msg("logger ready")
 
 	dbClient, err := database.NewDB(cfg, logger)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize database")
+		log.Fatal().Err(err).Msg("db init failed")
 	}
-	logger.Info().Msg("database connection successfull")
+	logger.Info().Msg("db connected")
 
 	defer dbClient.Close()
-	err = dbClient.MigrateUp()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to run migrations")
+	if err := dbClient.MigrateUp(); err != nil {
+		log.Fatal().Err(err).Msg("migration failed")
 	}
-	logger.Info().Msg("database migrations successfull")
+	logger.Info().Msg("migration done")
 
 	jwtMaker := authz.NewJWTMaker(cfg.Auth.TokenSymmetricKey)
 	redisClient := jobs.NewJobClient(cfg.Redis, logger)
-	mailer := mailer.NewMailTrap("onahvictorc@gmail.com", "sandbox.smtp.mailtrap.io", "66333baed34748", "9f0069b4e70329", 2525)
+	mailer := mailer.NewMailTrap(&cfg.Mailer)
 
 	userService, err := auth.NewUserService(
 		auth.WithAuth(jwtMaker),
@@ -57,23 +56,20 @@ func main() {
 		auth.WithJob(redisClient),
 		auth.WithLog(logger),
 	)
-
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize userService")
+		log.Fatal().Err(err).Msg("user service init failed")
 	}
 
 	mux := router.SetupRouter(userService, logger, &jwtMaker)
 
 	go func() {
 		if err := jobs.RunJobService(cfg.Redis, logger, mailer); err != nil {
-			logger.Fatal().Err(err).Msg("cannot create redis server")
+			logger.Fatal().Err(err).Msg("redis job failed")
 		}
 	}()
 
-	logger.Info().Str("port", cfg.Server.Port).Msg("server started")
-	err = transport.StartServer(cfg, mux, logger)
-	if err != nil {
-		log.Fatal().Err(err).Send()
+	logger.Info().Str("port", cfg.Server.Port).Msg("server starting")
+	if err := transport.StartServer(cfg, mux, logger); err != nil {
+		log.Fatal().Err(err).Msg("server start failed")
 	}
-
 }

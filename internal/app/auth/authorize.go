@@ -5,14 +5,15 @@ import (
 	"net/http"
 	"net/mail"
 
-	"github.com/IamOnah/storefronthq/internal/sdk/authz"
-	"github.com/IamOnah/storefronthq/internal/sdk/base"
-	"github.com/IamOnah/storefronthq/internal/sdk/errs"
-	"github.com/IamOnah/storefronthq/internal/sdk/middleware"
+	"github.com/iamonah/merchcore/internal/sdk/base"
+	"github.com/iamonah/merchcore/internal/sdk/errs"
 )
 
 func (us *UserService) Authenticate(w http.ResponseWriter, r *http.Request) error {
-	reqID := r.Context().Value(middleware.RequestIdKey).(string)
+	reqID, err := GetReqIDCTX(r)
+	if err != nil {
+		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
+	}
 
 	var req UserSignInReq
 	if err := base.ReadJSON(r, &req); err != nil {
@@ -70,10 +71,12 @@ func (us *UserService) Authenticate(w http.ResponseWriter, r *http.Request) erro
 }
 
 func (us *UserService) SignOut(w http.ResponseWriter, r *http.Request) error {
-	reqID := r.Context().Value(middleware.RequestIdKey).(string)
-
-	userPayload, ok := r.Context().Value(middleware.AuthContextPayloadKey).(*authz.Payload)
-	if !ok {
+	reqID, err := GetReqIDCTX(r)
+	if err != nil {
+		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
+	}
+	pl, err := GetJWTPayloadCTX(r)
+	if err != nil {
 		return errs.New(errs.Unauthenticated, errors.New("unauthorized"))
 	}
 
@@ -82,17 +85,17 @@ func (us *UserService) SignOut(w http.ResponseWriter, r *http.Request) error {
 		return errs.New(errs.InvalidArgument, errors.New("missing refresh token"))
 	}
 
-	if err := us.users.BlockSession(r.Context(), refreshToken); err != nil {
+	if err := us.users.BlockSession(r.Context(), pl.UserID, refreshToken); err != nil {
 		if derr, ok := errs.IsDomainError(err); ok {
 			return errs.New(derr.Code, derr)
 		}
-		return errs.Newf(errs.Internal, "signout: user[%s]: %s", userPayload.UserID, err)
+		return errs.Newf(errs.Internal, "signout: user[%s]: %s", pl.UserID, err)
 	}
 
 	us.log.Info().
 		Str("event", "user.signout").
 		Str("req_id", reqID).
-		Str("user_id", userPayload.UserID.String()).
+		Str("user_id", pl.UserID.String()).
 		Msg("signout: success")
 
 	if err := base.WriteJSON(w, http.StatusNoContent, nil); err != nil {
@@ -102,13 +105,15 @@ func (us *UserService) SignOut(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (us *UserService) RenewAccessToken(w http.ResponseWriter, r *http.Request) error {
-	reqID := r.Context().Value(middleware.RequestIdKey).(string)
-	payload, ok := r.Context().Value(middleware.AuthContextPayloadKey).(*authz.Payload)
-	if !ok {
+	reqID, err := GetReqIDCTX(r)
+	if err != nil {
+		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
+	}
+	pl, err := GetJWTPayloadCTX(r)
+	if err != nil {
 		return errs.New(errs.Unauthenticated, errors.New("unauthorized"))
 	}
-	
-	token, err := us.users.RenewAccessToken(r.Context(), payload)
+	token, err := us.users.RenewAccessToken(r.Context(), pl)
 	if err != nil {
 		if derr, ok := errs.IsDomainError(err); ok {
 			return errs.New(derr.Code, derr)

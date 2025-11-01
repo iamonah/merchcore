@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/IamOnah/storefronthq/internal/config"
+	"github.com/iamonah/merchcore/internal/config"
 
 	"github.com/rs/zerolog"
 )

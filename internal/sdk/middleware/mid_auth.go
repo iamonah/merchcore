@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/IamOnah/storefronthq/internal/sdk/authz"
-	"github.com/IamOnah/storefronthq/internal/sdk/base"
-	"github.com/IamOnah/storefronthq/internal/sdk/errs"
+	"github.com/iamonah/merchcore/internal/sdk/authz"
+	"github.com/iamonah/merchcore/internal/sdk/base"
+	"github.com/iamonah/merchcore/internal/sdk/errs"
 )
 
 type AuthKey string
@@ -24,16 +24,19 @@ func AuthBearer(authMaker authz.TokenMaker) base.Middleware {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			authHeader := r.Header.Get(string(AuthHeaderAuthorization))
 			if authHeader == "" {
+				w.Header().Set("WWW-Authenticate", "Bearer")
 				return errs.New(errs.Unauthenticated, errors.New("missing authorization header"))
 			}
 
 			parts := strings.Fields(authHeader)
 			if len(parts) != 2 || AuthKey(parts[0]) != AuthTypeBearer {
+				w.Header().Set("WWW-Authenticate", "Bearer")
 				return errs.New(errs.Unauthenticated, errors.New("malformed authorization header"))
 			}
 
 			payload, err := authMaker.VerifyToken(parts[1])
 			if err != nil {
+				w.Header().Set("WWW-Authenticate", "Bearer")
 				return errs.New(errs.Unauthenticated, errors.New("invalid or expired token"))
 			}
 
@@ -42,3 +45,5 @@ func AuthBearer(authMaker authz.TokenMaker) base.Middleware {
 		}
 	}
 }
+
+//use redis for session middleware()

@@ -4,12 +4,11 @@ CREATE TYPE role_type AS ENUM (
     'system_admin',
     'admin',
     'store_owner',
-    'store_admin',
     'guest'
 );
 
 CREATE TABLE IF NOT EXISTS users (
-    user_id         UUID PRIMARY KEY,
+    id              UUID PRIMARY KEY,
     password_hash   BYTEA,
     email           citext NOT NULL,
     first_name      VARCHAR(256) NOT NULL,
@@ -38,14 +37,18 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS addresses (
-    id          BIGSERIAL PRIMARY KEY,
-    user_id     UUID REFERENCES users(user_id),
-    street      TEXT NOT NULL,
-    city        TEXT NOT NULL,
-    state       TEXT NOT NULL,
-    postal_code TEXT NOT NULL,
-    country     TEXT NOT NULL,
-    is_default  BOOLEAN NOT NULL
+    id            BIGSERIAL PRIMARY KEY,
+    user_id       UUID REFERENCES users(user_id),
+    tenant_id     UUID REFERENCES tenants(id),
+    street        TEXT NOT NULL,
+    city          TEXT NOT NULL,
+    state         TEXT NOT NULL,
+    postal_code   TEXT NOT NULL,
+    country       TEXT NOT NULL,
+    address_type  TEXT CHECK (address_type IN ('business', 'billing')) NOT NULL,
+    is_default    BOOLEAN NOT NULL DEFAULT false,
+    created_at    TIMESTAMP DEFAULT NOW(),
+    updated_at    TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS users_user_id_idx ON users(user_id);

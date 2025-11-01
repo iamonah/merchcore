@@ -5,10 +5,8 @@ import (
 	"net/http"
 	"net/mail"
 
-	"github.com/IamOnah/storefronthq/internal/sdk/authz"
-	"github.com/IamOnah/storefronthq/internal/sdk/base"
-	"github.com/IamOnah/storefronthq/internal/sdk/errs"
-	"github.com/IamOnah/storefronthq/internal/sdk/middleware"
+	"github.com/iamonah/merchcore/internal/sdk/base"
+	"github.com/iamonah/merchcore/internal/sdk/errs"
 )
 
 func (us *UserService) ForgotPassword(w http.ResponseWriter, r *http.Request) error {
@@ -46,7 +44,10 @@ func (us *UserService) ForgotPassword(w http.ResponseWriter, r *http.Request) er
 
 // followup for forgotpassword
 func (us *UserService) ResetPassword(w http.ResponseWriter, r *http.Request) error {
-	reqID := r.Context().Value(middleware.RequestIdKey).(string)
+	reqID, err := GetReqIDCTX(r)
+	if err != nil {
+		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
+	}
 
 	var req ResetPasswordReq
 	if err := base.ReadJSON(r, &req); err != nil {
@@ -79,9 +80,12 @@ func (us *UserService) ResetPassword(w http.ResponseWriter, r *http.Request) err
 }
 
 func (us *UserService) ChangePassword(w http.ResponseWriter, r *http.Request) error {
-	reqID := r.Context().Value(middleware.RequestIdKey).(string)
-	userPayload, ok := r.Context().Value(middleware.AuthContextPayloadKey).(*authz.Payload)
-	if !ok {
+	reqID, err := GetReqIDCTX(r)
+	if err != nil {
+		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
+	}
+	pl, err := GetJWTPayloadCTX(r)
+	if err != nil {
 		return errs.New(errs.Unauthenticated, errors.New("unauthorized"))
 	}
 
@@ -94,9 +98,9 @@ func (us *UserService) ChangePassword(w http.ResponseWriter, r *http.Request) er
 		return errs.New(errs.InvalidArgument, errors.New("passwords do not match"))
 	}
 
-	user, err := us.users.ChangePassword(r.Context(), userPayload.UserID, req.OldPassword, req.NewPassword)
+	user, err := us.users.ChangePassword(r.Context(), pl.UserID, req.OldPassword, req.NewPassword)
 	if err != nil {
-		return errs.Newf(errs.Internal, "changepassoword: userID[%v]: %s", userPayload.UserID, err)
+		return errs.Newf(errs.Internal, "changepassoword: userID[%v]: %s", pl.UserID, err)
 	}
 
 	us.log.Info().

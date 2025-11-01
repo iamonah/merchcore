@@ -5,29 +5,29 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
-	"time"
 
+	"github.com/iamonah/merchcore/internal/config"
 	"gopkg.in/gomail.v2"
-)
-
-const (
-	numOfEmailRetries = 3
 )
 
 //go:embed templates
 var templateFS embed.FS
+
+type Mailer interface {
+	Send(templateFile string, reciever string, data any) error
+}
 
 type Mail struct {
 	dialer *gomail.Dialer
 	sender string
 }
 
-func NewMailTrap(sender, stmthost, password, username string, smtpport int) *Mail {
-	dialer := gomail.NewDialer(stmthost, smtpport, username, password)
+func NewMailTrap(cfg *config.MailerConfig) *Mail {
+	dialer := gomail.NewDialer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPassword)
 
 	return &Mail{
 		dialer: dialer,
-		sender: sender,
+		sender: cfg.Sender,
 	}
 }
 
@@ -58,18 +58,14 @@ func (m *Mail) Send(templateFile string, reciever string, data any) error {
 	message.SetHeader("From", m.sender)
 	message.SetHeader("To", reciever)
 	message.SetHeader("Subject", subjectBuffer.String())
-	message.SetHeader("List-Unsubscribe", fmt.Sprintf(`<mailto:unsubscribe@yourapp.com?subject=unsub-%s>, <https://yourapp.com/unsubscribe?email=%s>`, reciever, reciever))  // Add this header
+	message.SetHeader("List-Unsubscribe", fmt.Sprintf(`<mailto:unsubscribe@yourapp.com?subject=unsub-%s>, <https://yourapp.com/unsubscribe?email=%s>`, reciever, reciever)) // Add this header
 	message.SetBody("text/plain", plainbodyBuffer.String())
 
 	message.AddAlternative("text/html", htmlbodyBuffer.String())
 
-	for i := 0; i < numOfEmailRetries; i++ {
-		if err = m.dialer.DialAndSend(message); err != nil {
-			time.Sleep(time.Millisecond * time.Duration(numOfEmailRetries))
-			continue
-		}
-		return nil
+	if err = m.dialer.DialAndSend(message); err != nil {
+		return fmt.Errorf("dialandsend: %w", err)
 	}
 
-	return fmt.Errorf("failed to send email after %d retries : %w", numOfEmailRetries, err)
+	return nil
 }

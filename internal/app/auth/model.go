@@ -3,9 +3,8 @@ package auth
 import (
 	"time"
 
-	"github.com/IamOnah/storefronthq/internal/domain/users"
-
 	"github.com/google/uuid"
+	"github.com/iamonah/merchcore/internal/domain/users"
 )
 
 type UserCreateReq struct {
@@ -64,7 +63,7 @@ type UserResp struct {
 	Country        string    `json:"country"`
 	Roles          string    `json:"roles"`
 	IsVerified     bool      `json:"is_verified"`
-	Provider       *string   `json:"provider,omitempty"`
+	Provider       string    `json:"provider"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	IsStoreCreated bool      `json:"is_store_created"`
@@ -81,7 +80,7 @@ func toUserResp(u users.User) UserResp {
 		Country:        u.Contact.Country,
 		Roles:          u.GetRole(),
 		IsVerified:     u.IsVerified,
-		Provider:       u.Provider,
+		Provider:       u.Provider.String(),
 		CreatedAt:      u.CreatedAt,
 		UpdatedAt:      u.UpdatedAT,
 		IsStoreCreated: u.IsStoreCreated,

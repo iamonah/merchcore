@@ -30,7 +30,7 @@ migrations-up:
 migrations-down:
 	@echo "Running down migrations..."
 	tern migrate \
-		--conn-string "postgres://admin:secret@localhost:5432/storefronthq?sslmode=disable" \
+		--conn-string "postgres://admin:secret@localhost:5432/merchcore?sslmode=disable" \
 		--migrations internal/infra/database/migrations \
 		--destination 0
 
@@ -117,7 +117,7 @@ compose-test:
 
 
 # docker run -d   \
-# 	--name redis-storefronthq \
+# 	--name redis-merchcore \
 # 	-p 6379:6379 \
 # 	-v redisdata:/data \
 # 	redis:8.2.0-alpine \
@@ -126,10 +126,10 @@ compose-test:
 
 
 # docker run -d \
-#   --name postgres-storefronthq \
+#   --name postgres-merchcore \
 #   -e POSTGRES_USER=admin \
 #   -e POSTGRES_PASSWORD=secret \
-#   -e POSTGRES_DB=storefronthq \
+#   -e POSTGRES_DB=merchcore \
 #   -p 5432:5432 \
 #   -v storehqdata:/var/lib/postgresql/data \
 #   postgres:18.0

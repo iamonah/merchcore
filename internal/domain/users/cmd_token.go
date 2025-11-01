@@ -10,9 +10,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/IamOnah/storefronthq/internal/sdk/authz"
-	"github.com/IamOnah/storefronthq/internal/sdk/errs"
 	"github.com/google/uuid"
+	"github.com/iamonah/merchcore/internal/sdk/authz"
+	"github.com/iamonah/merchcore/internal/sdk/errs"
 )
 
 type tokenscope string
@@ -58,7 +58,7 @@ func GenerateToken(userID uuid.UUID, ttl time.Duration, scope tokenscope) (*Toke
 
 	_, err := rand.Read(randomBytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("generatetoken: %w", err)
 	}
 	token.Plaintext = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(randomBytes)
 	hash := sha256.Sum256([]byte(token.Plaintext))
@@ -104,10 +104,22 @@ func (s *UserBusiness) RenewAccessToken(ctx context.Context, payload *authz.Payl
 	return data, nil
 }
 
-func (s *UserBusiness) BlockSession(ctx context.Context, token string) error {
-	shaToken := sha256.Sum256([]byte(token))
+func (s *UserBusiness) BlockSession(ctx context.Context, userID uuid.UUID, refreshToken string) error {
+	shaToken := sha256.Sum256([]byte(refreshToken))
+	//del cache
+	acckey := SessionAccessKeys(userID)
+	err := s.cache.Delete(ctx, acckey)
+	if err != nil {
+		return fmt.Errorf("deletesession: %w", err)
+	}
 
-	err := s.storer.BlockSession(ctx, shaToken[:])
+	refkey := SessionAccessKeys(userID)
+	err = s.cache.Delete(ctx, refkey)
+	if err != nil {
+		return fmt.Errorf("deletesession: %w", err)
+	}
+
+	err = s.storer.BlockSession(ctx, shaToken[:])
 	if err != nil {
 		if errors.Is(err, ErrSessionNotFound) {
 			return errs.NewDomainError(errs.Unauthenticated, err)

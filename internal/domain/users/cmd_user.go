@@ -8,11 +8,12 @@ import (
 	"net/mail"
 	"time"
 
-	"github.com/IamOnah/storefronthq/internal/config"
-	"github.com/IamOnah/storefronthq/internal/infra/database"
-	"github.com/IamOnah/storefronthq/internal/sdk/authz"
-	"github.com/IamOnah/storefronthq/internal/sdk/errs"
 	"github.com/google/uuid"
+	"github.com/iamonah/merchcore/internal/config"
+	"github.com/iamonah/merchcore/internal/infra/cache"
+	"github.com/iamonah/merchcore/internal/infra/database"
+	"github.com/iamonah/merchcore/internal/sdk/authz"
+	"github.com/iamonah/merchcore/internal/sdk/errs"
 	// Global logger
 )
 
@@ -21,6 +22,7 @@ type UserBusiness struct {
 	trx    database.TransactorTX
 	authz  authz.TokenMaker
 	config *config.Config
+	cache  cache.Cache
 }
 
 func NewUserBusiness(store UserRepository, trx *database.TRXManager, authz *authz.JWTAuthMaker, cfg *config.Config) *UserBusiness {
@@ -213,6 +215,17 @@ func (s *UserBusiness) CreateSession(ctx context.Context, user User, userAgent, 
 	refreshToken, refreshPayload, err := s.authz.GenerateToken(refreshTokenData)
 	if err != nil {
 		return nil, fmt.Errorf("generatetoken: %w", err)
+	}
+	//cache
+	acckey := SessionAccessKeys(user.UserID)
+	err = s.cache.Set(ctx, acckey, accessToken, time.Duration(accessPayload.ExpiresAt.Second()))
+	if err != nil {
+		return nil, fmt.Errorf("setcache: %w", err)
+	}
+	refkey := SessionRefreshKeys(user.UserID)
+	err = s.cache.Set(ctx, refkey, accessToken, time.Duration(refreshPayload.ExpiresAt.Second()))
+	if err != nil {
+		return nil, fmt.Errorf("setcache: %w", err)
 	}
 
 	hashRefresh := sha256.Sum256([]byte(refreshToken))

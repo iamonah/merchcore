@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/IamOnah/storefronthq/internal/config"
+	"github.com/iamonah/merchcore/internal/config"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 )

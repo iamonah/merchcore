@@ -6,8 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/IamOnah/storefronthq/internal/sdk/errs"
-
+	"github.com/iamonah/merchcore/internal/sdk/errs"
 	"github.com/rs/zerolog/log"
 )
 

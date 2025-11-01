@@ -53,8 +53,14 @@ type RedisConfig struct {
 }
 
 type MailerConfig struct {
-	ResendAPIKey string `mapstructure:"RESEND_API_KEY" validate:"required"`
+	APIKey       string `mapstructure:"MAILER_API_KEY" validate:"required"`
+	Sender       string `mapstructure:"MAILER_SENDER" validate:"required,email"`
+	SMTPHost     string `mapstructure:"MAILER_SMTP_HOST" validate:"required"`
+	SMTPUser     string `mapstructure:"MAILER_SMTP_USER" validate:"required"`
+	SMTPPassword string `mapstructure:"MAILER_SMTP_PASSWORD" validate:"required"`
+	SMTPPort     int    `mapstructure:"MAILER_SMTP_PORT" validate:"required"`
 }
+
 
 type AuthConfig struct {
 	AccessTokenLifeTime  time.Duration `mapstructure:"ACCESS_TOKEN_LIFETIME" validate:"required"`
@@ -119,6 +125,13 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("unmarshalling config: %w", err)
 	}
 
+	if err = config.Logging.Validate(); err != nil {
+		return nil, fmt.Errorf("validateloggin: %w", err)
+	}
+
+	if err = config.Observability.Validate(); err != nil {
+		return nil, fmt.Errorf("validateobservability: %w", err)
+	}
 	// for _, key := range viper.AllKeys() {
 	// 	fmt.Printf("%s = %v\n", key, viper.Get(key))
 	// }
@@ -131,8 +144,5 @@ func LoadConfig(path string) (*Config, error) {
 	// 	return nil, fmt.Errorf("config validation failed: %w", err)
 	// }
 
-	// if config.Observability == nil {
-	// 	config.Observability = DefaultObservabilityConfig()
-	// }
 	return &config, nil
 }

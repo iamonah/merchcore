@@ -15,7 +15,7 @@ services:
     ports:
       - "3000:9090"
       - "4000:4000"
-  storefronthq-app:
+  merchcore-app:
     build:
       context: .
       dockerfile: Dockerfile 
@@ -23,11 +23,11 @@ services:
     ports:
       - "3000:8080"
     networks:
-      - storefronthqbackend
+      - merchcorebackend
     volumes:
       - ./:/app
     depends_on:
-      postgres-storefronthq:
+      postgres-merchcore:
         condition: service_healthy
-      redis-storefronthq:
+      redis-merchcore:
         condition: service_healthy

@@ -1,13 +1,15 @@
 package jobs
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/gob"
 	"fmt"
 	"time"
 
-	"github.com/IamOnah/storefronthq/internal/config"
+	"github.com/iamonah/merchcore/internal/config"
+	"github.com/iamonah/merchcore/internal/domain/users"
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
@@ -26,7 +28,7 @@ type JobClient struct {
 }
 
 type JobService interface {
-	WelcomeEmailJob(firstname string, code string, userID uuid.UUID, email string) error
+	WelcomeEmailJob(user *users.User, code string) error
 	ResendVerificationTokenJob(firstname string, code string, userID uuid.UUID) error
 	PasswordResetEmailJob(email string, token string, userId uuid.UUID) error
 }
@@ -47,33 +49,31 @@ func (jc *JobClient) CloseClient() {
 }
 
 type VerifyEmailPayload struct {
+	UserID         uuid.UUID
 	Email          string
 	FirstName      string
 	Code           string
 	UnsubscribeURL string
 }
 
-// TODO: remember test phase so modify the unsubscribe link
-func (jq *JobClient) WelcomeEmailJob(firstname string, code string, userID uuid.UUID, email string) error {
+// TODO: Unsubscribe feature
+func (jq *JobClient) WelcomeEmailJob(user *users.User, code string) error {
 	tokenBytes := make([]byte, 32)
 	rand.Read(tokenBytes)
 	unsubscribeToken := base64.URLEncoding.EncodeToString(tokenBytes)
-	var unsubscribeURL = fmt.Sprintf("https://yourapp.com/unsubscribe?token=%s&email=%s", unsubscribeToken, email)
+	unsubscribeURL := fmt.Sprintf("https://yourapp.com/unsubscribe?token=%s&email=%s", unsubscribeToken, user.Email.Address)
 
-	payload, err := json.Marshal(
-		VerifyEmailPayload{
-			FirstName: firstname,
-			Code:      code, Email: email,
-			UnsubscribeURL: unsubscribeURL,
-		})
-	if err != nil {
-		jq.logger.Error().
-			Err(err).
-			Str("user", firstname).
-			Str("user_id", userID.String()).
-			Str("task_type", TypeEmailVerify).
-			Msg("failed to marshall payload")
-		return fmt.Errorf("marshall payload %w", err)
+	var buf bytes.Buffer
+	payload := VerifyEmailPayload{
+		UserID:         user.UserID,
+		FirstName:      user.FirstName,
+		Code:           code,
+		Email:          user.Email.Address,
+		UnsubscribeURL: unsubscribeURL,
+	}
+
+	if err := gob.NewEncoder(&buf).Encode(payload); err != nil {
+		return fmt.Errorf("encode payload: type:%v: %w", TypeEmailVerify, err)
 	}
 
 	opts := []asynq.Option{
@@ -82,39 +82,29 @@ func (jq *JobClient) WelcomeEmailJob(firstname string, code string, userID uuid.
 		asynq.Queue(QueueCritical),
 	}
 
-	welcomeEmailTask := asynq.NewTask(TypeEmailVerify, payload, opts...)
+	task := asynq.NewTask(TypeEmailVerify, buf.Bytes(), opts...)
 
-	info, err := jq.client.Enqueue(welcomeEmailTask)
+	info, err := jq.client.Enqueue(task)
 	if err != nil {
-		jq.logger.Error().
-			Err(err).
-			Str("queue", info.Queue).
-			Str("username", firstname).
-			Str("task_type", TypeEmailVerify).
-			Msg("failed to enqueue email verification task")
-		return fmt.Errorf("enqueue email: %w", err)
+		return fmt.Errorf("enqueue: type:%v: %w", TypeEmailVerify, err)
 	}
 
-	jq.logger.Info().
-		Str("user", firstname).
-		Str("task_type", TypeEmailVerify).
-		Str("queue", info.Queue).
-		Int("max_retry", info.MaxRetry).
-		Msg("succesfully enqueued email verification task")
+	jq.logger.Info().Str("task", TypeEmailVerify).Str("queue", info.Queue).
+		Str("user_id", payload.UserID.String()).Msg("email verification enqueued")
+
 	return nil
 }
 
 // for resending a an activation token
-func (jq *JobClient) ResendVerificationTokenJob(firstname string, code string, userID uuid.UUID) error {
-	payload, err := json.Marshal(VerifyEmailPayload{FirstName: firstname, Code: code})
-	if err != nil {
-		jq.logger.Error().
-			Err(err).
-			Str("user", firstname).
-			Str("user_id", userID.String()).
-			Str("task_type", TypeEmailVerify).
-			Msg("failed to marshall payload")
-		return fmt.Errorf("marshall payload %w", err)
+func (jq *JobClient) ResendVerificationTokenJob(firstname, code string, userID uuid.UUID) error {
+	var buf bytes.Buffer
+	payload := VerifyEmailPayload{
+		FirstName: firstname,
+		Code:      code,
+	}
+
+	if err := gob.NewEncoder(&buf).Encode(payload); err != nil {
+		return fmt.Errorf("gob encode: type:%v :%w", TypeEmailVerify, err)
 	}
 
 	opts := []asynq.Option{
@@ -123,25 +113,16 @@ func (jq *JobClient) ResendVerificationTokenJob(firstname string, code string, u
 		asynq.Queue(QueueCritical),
 	}
 
-	welcomeEmailTask := asynq.NewTask(TypeEmailVerify, payload, opts...)
+	task := asynq.NewTask(TypeEmailVerify, buf.Bytes(), opts...)
 
-	info, err := jq.client.Enqueue(welcomeEmailTask)
+	info, err := jq.client.Enqueue(task)
 	if err != nil {
-		jq.logger.Error().
-			Err(err).
-			Str("queue", info.Queue).
-			Str("username", firstname).
-			Str("task_type", TypeEmailVerify).
-			Msg("failed to enqueue email verification task")
-		return fmt.Errorf("enqueue email: %w", err)
+		return fmt.Errorf("enqueue email: type:%v, :%w", TypeEmailVerify, err)
 	}
 
-	jq.logger.Info().
-		Str("user", firstname).
-		Str("task_type", TypeEmailVerify).
-		Str("queue", info.Queue).
-		Int("max_retry", info.MaxRetry).
-		Msg("succesfully enqueued email verification task")
+	jq.logger.Info().Str("user_id", userID.String()).Str("user_name", firstname).
+		Str("task_type", TypeEmailVerify).Str("queue", info.Queue).
+		Int("max_retry", info.MaxRetry).Msg("email verification enqueued")
 	return nil
 }
 

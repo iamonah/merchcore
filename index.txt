@@ -42,3 +42,40 @@ setupstore
 
 ('staff',        'Store staff with limited permissions'),
 ('customer',     'Registered user without a store'),
+
+CREATE TABLE store_staffs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id UUID NOT NULL REFERENCES stores(store_id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    role role_type NOT NULL, -- e.g. 'owner', 'manager', 'cashier'
+    invited_by UUID REFERENCES users(user_id),
+    invitation_status TEXT DEFAULT 'pending' CHECK (invitation_status IN ('pending', 'accepted', 'rejected')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (store_id, user_id)
+);
+
+{
+  "owner": ["manage_staff", "view_sales", "edit_products", "withdraw_funds"],
+  "manager": ["view_sales", "edit_products"],
+  "cashier": ["view_orders"]
+}
+
+
+
+
+
+storefronthq
+merchcore
+
+Small business owners running online stores
+
+Independent sellers or brands
+
+SMEs expanding from physical to digital
+
+Creators selling branded products
+
+Metco is the infrastructure powering online commerce.
+We help businesses launch and manage their online stores effortlessly — with everything they need in one place: storefronts, product catalogs, payments, and order management.
+Whether you’re starting small or scaling fast, Metco gives you the core tools to run your business online — securely, reliably, and beautifully.

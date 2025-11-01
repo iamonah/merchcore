@@ -2,17 +2,17 @@ package auth
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
-	"github.com/IamOnah/storefronthq/internal/sdk/authz"
-	"github.com/IamOnah/storefronthq/internal/sdk/base"
-	"github.com/IamOnah/storefronthq/internal/sdk/errs"
-	"github.com/IamOnah/storefronthq/internal/sdk/middleware"
+	"github.com/iamonah/merchcore/internal/sdk/base"
+	"github.com/iamonah/merchcore/internal/sdk/errs"
 )
 
 func (us *UserService) RegisterUser(w http.ResponseWriter, r *http.Request) error {
-	reqID := r.Context().Value(middleware.RequestIdKey).(string)
+	reqID, err := GetReqIDCTX(r)
+	if err != nil {
+		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
+	}
 
 	var usrReq UserCreateReq
 	if err := base.ReadJSON(r, &usrReq); err != nil {
@@ -28,29 +28,21 @@ func (us *UserService) RegisterUser(w http.ResponseWriter, r *http.Request) erro
 		if derr, ok := errs.IsDomainError(err); ok {
 			return errs.New(derr.Code, err)
 		}
-		return errs.Newf(errs.Internal, "createuser: %s", err)
+		return errs.Newf(errs.Internal, "createuser: reqID[%s]: %s", reqID, err)
 	}
 
-	us.log.Info().
-		Str("event", "user.register").
-		Str("req_id", reqID).
-		Str("user_id", newUser.UserID.String()).
-		Msg("user registered")
+	us.log.Info().Str("event", "user.register").Str("req_id", reqID).
+		Str("user_id", newUser.UserID.String()).Msg("user registered")
 
-	fmt.Println("big token", token.Plaintext)
-	if err := us.job.WelcomeEmailJob(newUser.FirstName, token.Plaintext, newUser.UserID, newUser.Email.Address); err != nil {
+	err = us.job.WelcomeEmailJob(&newUser, token.Plaintext)
+	if err != nil {
 		us.log.Error().
-			Err(err).
-			Str("event", "user.register").
+			Err(err).Str("event", "user.register").
 			Str("user_id", newUser.UserID.String()).
 			Msg("welcome email enqueue")
-	} else {
-		us.log.Info().
-			Str("event", "user.register").
-			Str("user_id", newUser.UserID.String()).
-			Msg("welcome email enqueued")
 	}
-	info := UserCreateResp{Message: "succes, verify your email"}
+
+	info := UserCreateResp{Message: "success, verify your email"}
 
 	if err := base.WriteJSON(w, http.StatusCreated, info); err != nil {
 		return errs.Newf(errs.Internal, "writejson: %s", err)
@@ -59,9 +51,12 @@ func (us *UserService) RegisterUser(w http.ResponseWriter, r *http.Request) erro
 }
 
 func (us *UserService) ActivateUser(w http.ResponseWriter, r *http.Request) error {
-	reqID := r.Context().Value(middleware.RequestIdKey).(string)
-	pl, ok := r.Context().Value(middleware.AuthContextPayloadKey).(*authz.Payload)
-	if !ok {
+	reqID, err := GetReqIDCTX(r)
+	if err != nil {
+		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
+	}
+	pl, err := GetJWTPayloadCTX(r)
+	if err != nil {
 		return errs.New(errs.Unauthenticated, errors.New("unauthorized"))
 	}
 
@@ -93,22 +88,25 @@ func (us *UserService) ActivateUser(w http.ResponseWriter, r *http.Request) erro
 }
 
 func (us *UserService) ResendVerificationToken(w http.ResponseWriter, r *http.Request) error {
-	reqID := r.Context().Value(middleware.RequestIdKey).(string)
-	userPayload, ok := r.Context().Value(middleware.AuthContextPayloadKey).(*authz.Payload)
-	if !ok {
+	reqID, err := GetReqIDCTX(r)
+	if err != nil {
+		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
+	}
+	pl, err := GetJWTPayloadCTX(r)
+	if err != nil {
 		return errs.New(errs.Unauthenticated, errors.New("unauthorized"))
 	}
 
-	user, token, err := us.users.ResendActivationToken(r.Context(), userPayload.UserID)
+	user, token, err := us.users.ResendActivationToken(r.Context(), pl.UserID)
 	if err != nil {
 		if derr, ok := errs.IsDomainError(err); ok {
 			return errs.New(derr.Code, err)
 		}
-		return errs.Newf(errs.Internal, "resendactivationtoken: userID[%s]: %s", userPayload.UserID, err)
+		return errs.Newf(errs.Internal, "resendactivationtoken: userID[%s]: %s", pl.UserID, err)
 	}
 
 	if err := us.job.ResendVerificationTokenJob(user.FirstName, token.Plaintext, user.UserID); err != nil {
-		return errs.Newf(errs.Internal, "resendactivation: enqueue job userID[%s]: %s", user.UserID, err)
+		return errs.Newf(errs.Internal, "resendactivation: userID[%s]: %s", user.UserID, err)
 	}
 
 	us.log.Info().

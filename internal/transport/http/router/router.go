@@ -7,10 +7,10 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/IamOnah/storefronthq/internal/sdk/base"
-	"github.com/IamOnah/storefronthq/internal/sdk/errs"
-	"github.com/IamOnah/storefronthq/internal/sdk/middleware"
 	"github.com/google/uuid"
+	"github.com/iamonah/merchcore/internal/sdk/base"
+	"github.com/iamonah/merchcore/internal/sdk/errs"
+	"github.com/iamonah/merchcore/internal/sdk/middleware"
 	"github.com/rs/zerolog"
 
 	"github.com/gorilla/mux"
@@ -21,6 +21,8 @@ type App struct {
 	mux      *mux.Router
 	globalMw []base.Middleware
 }
+
+var RequestIDHeader = "X-Request-Id"
 
 func NewApp(log *zerolog.Logger, globalMw ...base.Middleware) *App {
 	return &App{
@@ -35,7 +37,7 @@ func (a *App) HandleFunc(method string, path string, handler base.HTTPHandlerWit
 	wrapped := base.Chain(handler, allMw...)
 
 	a.mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		reqID := r.Header.Get("X-Request-ID")
+		reqID := r.Header.Get(RequestIDHeader)
 		if reqID == "" {
 			reqID = uuid.New().String()
 		}

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/IamOnah/storefronthq/internal/config"
-	"github.com/IamOnah/storefronthq/internal/sdk/mailer"
 	"github.com/hibiken/asynq"
+	"github.com/iamonah/merchcore/internal/config"
+	"github.com/iamonah/merchcore/internal/sdk/mailer"
 	"github.com/rs/zerolog"
 )
 
@@ -55,7 +55,7 @@ func RunJobService(cfg config.RedisConfig, logger *zerolog.Logger, mailer *maile
 	jobProcessor := NewJobProcessor(cfg, logger, mailer)
 	defer jobProcessor.server.Stop() // ensure workers stop on shutdown
 
-	jobProcessor.logger.Info().Msg("starting task processor")
+	jobProcessor.logger.Info().Msg("start job service")
 	err := jobProcessor.Start()
 	if err != nil {
 		return fmt.Errorf("runjobservice: %w", err)

@@ -2,11 +2,12 @@ package users
 
 import (
 	"net/mail"
+	"strings"
 	"time"
 
-	"github.com/IamOnah/storefronthq/internal/domain/shared/contact"
-	"github.com/IamOnah/storefronthq/internal/domain/shared/role"
 	"github.com/google/uuid"
+	"github.com/iamonah/merchcore/internal/domain/shared/contact"
+	"github.com/iamonah/merchcore/internal/domain/shared/role"
 )
 
 type UserCreate struct {
@@ -18,6 +19,25 @@ type UserCreate struct {
 	Country     string
 	Provider    *string
 	ProviderID  *string
+}
+
+func (u *UserCreate) Sanitize() {
+	u.Password = strings.TrimSpace(u.Password)
+	u.FirstName = strings.TrimSpace(u.FirstName)
+	u.LastName = strings.TrimSpace(u.LastName)
+	u.Email = strings.TrimSpace(u.Email)
+	u.PhoneNumber = strings.TrimSpace(u.PhoneNumber)
+	u.Country = strings.TrimSpace(u.Country)
+
+	if u.Provider != nil {
+		provider := strings.TrimSpace(*u.Provider)
+		u.Provider = &provider
+	}
+
+	if u.ProviderID != nil {
+		providerID := strings.TrimSpace(*u.ProviderID)
+		u.ProviderID = &providerID
+	}
 }
 
 type UserUpdate struct {

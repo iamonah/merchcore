@@ -6,9 +6,7 @@ var (
 	SystemAdmin = newRole("system_admin")
 	Admin       = newRole("admin")
 	StoreOwner  = newRole("store_owner")
-	StoreAdmin  = newRole("store_admin")
 	Staff       = newRole("staff")
-	Customer    = newRole("customer")
 	Guest       = newRole("guest")
 )
 

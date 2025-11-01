@@ -24,6 +24,5 @@ func NewValidate(data any) error {
 			}
 		}
 	}
-
 	return fe.ToError()
 }

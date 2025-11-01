@@ -8,11 +8,11 @@ import (
 )
 
 type AppErr struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message,omitempty"`
-	Fields  FieldErrors `json:"fields,omitempty"`  
-	FuncName string     `json:"-"`
-	FileName string     `json:"-"`
+	Code     int         `json:"code"`
+	Message  string      `json:"message,omitempty"`
+	Fields   FieldErrors `json:"fields,omitempty"`
+	FuncName string      `json:"-"`
+	FileName string      `json:"-"`
 }
 
 func (e *AppErr) Error() string {
@@ -30,8 +30,8 @@ func New(code ErrCode, err error) *AppErr {
 	if errors.As(err, &fields) && len(*fields) > 0 {
 		return &AppErr{
 			Code:     HTTPStatus[code],
-			Message:  "Validation failed",  
-			Fields:   *fields,              
+			Message:  "Validation failed",
+			Fields:   *fields,
 			FuncName: runtime.FuncForPC(pc).Name(),
 			FileName: fmt.Sprintf("%s:%d", filename, line),
 		}
@@ -65,8 +65,13 @@ func (e *DomainError) Error() string {
 	return e.Msg.Error()
 }
 
+func (e *DomainError) Unwrap() error {
+	return e.Msg
+}
+
 func NewDomainError(code ErrCode, msg error) error {
-	return &DomainError{Code: code, Msg: msg}
+	err := fmt.Errorf("%w", msg)
+	return &DomainError{Code: code, Msg: err}
 }
 
 func IsDomainError(err error) (*DomainError, bool) {
@@ -97,7 +102,7 @@ func (fe *FieldErrors) AddFieldError(field string, err error) {
 
 func (fe *FieldErrors) ToError() error {
 	if len(*fe) != 0 {
-		return fe 
+		return fe
 	}
 	return nil
 }

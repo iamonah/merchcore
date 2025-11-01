@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net/mail"
 
-	"github.com/IamOnah/storefronthq/internal/domain/shared/contact"
-	"github.com/IamOnah/storefronthq/internal/domain/shared/role"
-	"github.com/IamOnah/storefronthq/internal/domain/users"
-	"github.com/IamOnah/storefronthq/internal/infra/database"
+	"github.com/iamonah/merchcore/internal/domain/shared/contact"
+	"github.com/iamonah/merchcore/internal/domain/shared/role"
+	"github.com/iamonah/merchcore/internal/domain/users"
+	"github.com/iamonah/merchcore/internal/infra/database"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -30,7 +30,7 @@ func (us *userdb) CreateUser(ctx context.Context, usr *users.User) error {
 	conn := database.GetTXFromContext(ctx, us.conn)
 
 	query := `
-		INSERT INTO users (user_id, email, first_name, last_name,
+		INSERT INTO users (id, email, first_name, last_name,
 			password_hash, provider_id, phone_number,
 			provider, country, number_of_store, is_store_created, role) 
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
@@ -46,7 +46,7 @@ func (us *userdb) CreateUser(ctx context.Context, usr *users.User) error {
 		usr.PasswordHash,
 		usr.ProviderID,
 		usr.Contact.Number,
-		usr.Provider,
+		usr.Provider.String(),
 		usr.Contact.Country,
 		usr.NumOfStore,
 		usr.IsStoreCreated,
@@ -79,7 +79,7 @@ func (us *userdb) GetUserByEmail(ctx context.Context, emailValue string) (*users
 	conn := database.GetTXFromContext(ctx, us.conn)
 
 	query := `
-		SELECT user_id, email, first_name, last_name, password_hash,
+		SELECT id, email, first_name, last_name, password_hash,
 			provider_id, phone_number, provider, country,
 			created_at, updated_at, is_verified, deleted_at,
 			role, is_store_created, number_of_store AS num_of_store
@@ -92,6 +92,7 @@ func (us *userdb) GetUserByEmail(ctx context.Context, emailValue string) (*users
 		phoneNum string
 		country  string
 		roleStr  string
+		provider string
 		u        users.User
 	)
 	err := conn.QueryRow(ctx, query, emailValue).Scan(
@@ -102,7 +103,7 @@ func (us *userdb) GetUserByEmail(ctx context.Context, emailValue string) (*users
 		&u.PasswordHash,
 		&u.ProviderID,
 		&phoneNum,
-		&u.Provider,
+		&provider,
 		&country,
 		&u.CreatedAt,
 		&u.UpdatedAT,
@@ -117,28 +118,33 @@ func (us *userdb) GetUserByEmail(ctx context.Context, emailValue string) (*users
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, users.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("getuserbyemail: %w: %w", users.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %w", users.ErrDatabase, err)
 	}
+
 	email, err := mail.ParseAddress(emailStr)
 	if err != nil {
-		return nil, fmt.Errorf("getuserbyemail: %w: invalid stored email %s: %w", users.ErrDatabase, emailStr, err)
+		return nil, fmt.Errorf("%w invalid email %q: %w", users.ErrDatabase, emailStr, err)
 	}
 
-	u.Email = email
-
 	contact := contact.NewContact(phoneNum, country)
-	err = contact.ValidateContact()
-	if err != nil {
-		return nil, fmt.Errorf("getuserbyemail: %w: invalid stored contact %s,%s: %w", users.ErrDatabase, phoneNum, country, err)
+	if err := contact.ValidateContact(); err != nil {
+		return nil, fmt.Errorf("%w invalid contact %q,%q: %w", users.ErrDatabase, phoneNum, country, err)
 	}
 
 	u.Role, err = role.Parse(roleStr)
 	if err != nil {
-		return nil, fmt.Errorf("getuserbyemail: invalid stored role %q: %w", roleStr, err)
+		return nil, fmt.Errorf("%w invalid role %q: %w", users.ErrDatabase, roleStr, err)
 	}
 
+	u.Provider, err = users.ParseProvider(provider)
+	if err != nil {
+		return nil, fmt.Errorf("%w invalid provider %q: %w", users.ErrDatabase, provider, err)
+	}
+
+	u.Email = email
 	u.Contact = contact
 	return &u, nil
+
 }
 
 func (us *userdb) GetUserPhoneNumber(ctx context.Context, phone string) error {
@@ -156,6 +162,7 @@ func (us *userdb) GetUserPhoneNumber(ctx context.Context, phone string) error {
 	return users.ErrPhoneNumberExists
 }
 
+// Todo: still in works
 func (us *userdb) UpdateUser(ctx context.Context, usr *users.User) error {
 	conn := database.GetTXFromContext(ctx, us.conn)
 	query := `
@@ -173,7 +180,7 @@ func (us *userdb) UpdateUser(ctx context.Context, usr *users.User) error {
 			number_of_store = $10,
 			is_store_created = $11,
 			updated_at = now()
-		WHERE user_id = $12
+		WHERE id = $12
 	`
 	_, err := conn.Exec(ctx,
 		query,
@@ -209,7 +216,7 @@ func (us *userdb) UpdateUser(ctx context.Context, usr *users.User) error {
 				return fmt.Errorf("unhandled db constraint: %s (%s)", pgErr.ConstraintName, pgErr.Message)
 			}
 		}
-		return fmt.Errorf("updateyuser: %w: %w", users.ErrDatabase, err)
+		return fmt.Errorf("%w: %w", users.ErrDatabase, err)
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		return users.ErrUserNotFound
@@ -222,12 +229,12 @@ func (us *userdb) GetUserByID(ctx context.Context, userID uuid.UUID) (*users.Use
 	conn := database.GetTXFromContext(ctx, us.conn)
 
 	query := `
-		SELECT user_id, email, first_name, last_name, password_hash,
+		SELECT id, email, first_name, last_name, password_hash,
 			   provider_id, phone_number, provider, country,
 			   created_at, updated_at, is_verified, deleted_at,
 			   role, is_store_created, number_of_store AS num_of_store
 		FROM users
-		WHERE user_id = $1;
+		WHERE id = $1;
 	`
 
 	var (
@@ -236,6 +243,7 @@ func (us *userdb) GetUserByID(ctx context.Context, userID uuid.UUID) (*users.Use
 		country  string
 		roleStr  string
 		u        users.User
+		provider string
 	)
 
 	err := conn.QueryRow(ctx, query, userID).Scan(
@@ -246,7 +254,7 @@ func (us *userdb) GetUserByID(ctx context.Context, userID uuid.UUID) (*users.Use
 		&u.PasswordHash,
 		&u.ProviderID,
 		&phoneNum,
-		&u.Provider,
+		&provider,
 		&country,
 		&u.CreatedAt,
 		&u.UpdatedAT,
@@ -261,29 +269,32 @@ func (us *userdb) GetUserByID(ctx context.Context, userID uuid.UUID) (*users.Use
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, users.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("getuserbyid: %w: %w", users.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %w", users.ErrDatabase, err)
 	}
 
 	email, err := mail.ParseAddress(emailStr)
 	if err != nil {
-		return nil, fmt.Errorf("getuserbyid: %w: invalid stored email %s: %w", users.ErrDatabase, emailStr, err)
+		return nil, fmt.Errorf("%w: invalid email %s: %w", users.ErrDatabase, emailStr, err)
 	}
 	u.Email = email
 
 	contact := contact.NewContact(phoneNum, country)
 	if err := contact.ValidateContact(); err != nil {
-		return nil, fmt.Errorf("getuserbyid: %w: invalid stored contact %s,%s: %w", users.ErrDatabase, phoneNum, country, err)
+		return nil, fmt.Errorf("%w: invalid contact %s,%s: %w", users.ErrDatabase, phoneNum, country, err)
 	}
 	u.Contact = contact
 
 	u.Role, err = role.Parse(roleStr)
 	if err != nil {
-		return nil, fmt.Errorf("getuserbyid: invalid stored role %q: %w", roleStr, err)
+		return nil, fmt.Errorf("%w: invalid role %q: %w", users.ErrDatabase, roleStr, err)
 	}
 
+	u.Provider, err = users.ParseProvider(provider)
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid provider %q: %w", users.ErrDatabase, provider, err)
+	}
 	return &u, nil
 }
-
 
 func (us *userdb) VerifyUser(ctx context.Context, userID uuid.UUID) error {
 	conn := database.GetTXFromContext(ctx, us.conn)
@@ -292,7 +303,7 @@ func (us *userdb) VerifyUser(ctx context.Context, userID uuid.UUID) error {
         UPDATE users
         SET is_verified = TRUE,
             updated_at = now()
-        WHERE user_id = $1
+        WHERE id = $1
     `
 	cmdTag, err := conn.Exec(ctx, query, userID)
 	if err != nil {
@@ -313,7 +324,7 @@ func (us *userdb) UpdatePassword(ctx context.Context, userID uuid.UUID, password
         UPDATE users
         SET password_hash = $1,
             updated_at = now()
-        WHERE user_id = $2
+        WHERE id = $2
     `
 	cmdTag, err := conn.Exec(ctx, query, passwordHash, userID)
 	if err != nil {

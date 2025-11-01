@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/IamOnah/storefronthq/internal/sdk/base"
-	"github.com/IamOnah/storefronthq/internal/sdk/errs"
+	"github.com/iamonah/merchcore/internal/sdk/base"
+	"github.com/iamonah/merchcore/internal/sdk/errs"
 
 	"github.com/rs/zerolog"
 )

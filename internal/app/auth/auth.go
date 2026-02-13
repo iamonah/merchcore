@@ -4,12 +4,13 @@ import (
 	"errors"
 	"net/http"
 
+	// "github.com/iamonah/merchcore/internal/sdk/base"
 	"github.com/iamonah/merchcore/internal/sdk/base"
 	"github.com/iamonah/merchcore/internal/sdk/errs"
 )
 
 func (us *UserService) RegisterUser(w http.ResponseWriter, r *http.Request) error {
-	reqID, err := GetReqIDCTX(r)
+	reqID, err := base.GetReqIDCTX(r)
 	if err != nil {
 		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
 	}
@@ -51,11 +52,11 @@ func (us *UserService) RegisterUser(w http.ResponseWriter, r *http.Request) erro
 }
 
 func (us *UserService) ActivateUser(w http.ResponseWriter, r *http.Request) error {
-	reqID, err := GetReqIDCTX(r)
+	reqID, err := base.GetReqIDCTX(r)
 	if err != nil {
 		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
 	}
-	pl, err := GetJWTPayloadCTX(r)
+	pl, err := base.GetJWTPayloadCTX(r)
 	if err != nil {
 		return errs.New(errs.Unauthenticated, errors.New("unauthorized"))
 	}
@@ -88,11 +89,11 @@ func (us *UserService) ActivateUser(w http.ResponseWriter, r *http.Request) erro
 }
 
 func (us *UserService) ResendVerificationToken(w http.ResponseWriter, r *http.Request) error {
-	reqID, err := GetReqIDCTX(r)
+	reqID, err := base.GetReqIDCTX(r)
 	if err != nil {
 		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
 	}
-	pl, err := GetJWTPayloadCTX(r)
+	pl, err := base.GetJWTPayloadCTX(r)
 	if err != nil {
 		return errs.New(errs.Unauthenticated, errors.New("unauthorized"))
 	}

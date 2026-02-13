@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"runtime/debug"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/iamonah/merchcore/internal/sdk/base"
 	"github.com/iamonah/merchcore/internal/sdk/errs"
-	"github.com/iamonah/merchcore/internal/sdk/middleware"
+	"github.com/iamonah/merchcore/internal/sdk/midd"
 	"github.com/rs/zerolog"
 
 	"github.com/gorilla/mux"
@@ -19,12 +18,12 @@ import (
 type App struct {
 	log      *zerolog.Logger
 	mux      *mux.Router
-	globalMw []base.Middleware
+	globalMw []midd.Middleware
 }
 
 var RequestIDHeader = "X-Request-Id"
 
-func NewApp(log *zerolog.Logger, globalMw ...base.Middleware) *App {
+func NewApp(log *zerolog.Logger, globalMw ...midd.Middleware) *App {
 	return &App{
 		log:      log,
 		mux:      mux.NewRouter(),
@@ -32,28 +31,22 @@ func NewApp(log *zerolog.Logger, globalMw ...base.Middleware) *App {
 	}
 }
 
-func (a *App) HandleFunc(method string, path string, handler base.HTTPHandlerWithErr, mw ...base.Middleware) {
+func (a *App) HandleFunc(method string, path string, handler midd.HTTPHandlerWithErr, mw ...midd.Middleware) {
 	allMw := append(a.globalMw, mw...)
-	wrapped := base.Chain(handler, allMw...)
+	wrappedHandler := midd.Chain(handler, allMw...)
 
 	a.mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		reqID := r.Header.Get(RequestIDHeader)
 		if reqID == "" {
 			reqID = uuid.New().String()
 		}
-		r = r.WithContext(context.WithValue(r.Context(), middleware.RequestIdKey, reqID))
-		nwr := middleware.NewResponseWriter(w)
+		w.Header().Set(RequestIDHeader, reqID)
+		r = r.WithContext(context.WithValue(r.Context(), midd.RequestIdKey, reqID))
+		nwr := midd.NewResponseWriter(w)
 		start := time.Now()
 		ip := base.GetClientIP(r)
 
 		defer func() {
-			if rec := recover(); rec != nil {
-				a.log.Error().
-					Interface("panic", rec).
-					Bytes("stack", debug.Stack()).
-					Msg("panic recovered in router")
-				base.WriteJSONInternalError(nwr)
-			}
 			a.log.Info().
 				Str("request_id", reqID).
 				Str("method", r.Method).
@@ -65,8 +58,9 @@ func (a *App) HandleFunc(method string, path string, handler base.HTTPHandlerWit
 				Msg("incoming request")
 		}()
 
-		if err := wrapped(nwr, r); err != nil {
+		if err := wrappedHandler(nwr, r); err != nil {
 			a.handleError(nwr, r, err)
+			return
 		}
 	}).Methods(method)
 }
@@ -76,22 +70,21 @@ func (app *App) handleError(w http.ResponseWriter, r *http.Request, err error) {
 		return
 	}
 
-	reqID := r.Context().Value(middleware.RequestIdKey).(string)
-	log := app.log.With().
-		Str("req_id", reqID).
-		Logger()
+	reqID := r.Context().Value(midd.RequestIdKey).(string)
+	log := app.log.With().Str("req_id", reqID).Logger()
 
+	//by design I always expect an *errs.AppErr
 	if appErr, ok := err.(*errs.AppErr); ok {
 		event := "http.request.failed"
-		if appErr.Code >= 500 {
+		if appErr.Code >= http.StatusInternalServerError {
 			log.Error().
 				Err(fmt.Errorf("[internal]: %v", appErr)).
 				Str("func_name", appErr.FuncName).
 				Str("file_name", appErr.FileName).
 				Str("event", event).
-				Int("code", appErr.Code).Send()
+				Int("status_code", appErr.Code).Send()
 
-			base.WriteJSONInternalError(w)
+			base.WriteJSONInternalError(w, appErr)
 			return
 		}
 
@@ -99,10 +92,5 @@ func (app *App) handleError(w http.ResponseWriter, r *http.Request, err error) {
 		return
 	}
 
-	log.Error().
-		Err(err).
-		Str("event", "http.request.unexpected").
-		Msg("[panic] unhandled or non-AppErr error")
-
-	base.WriteJSONInternalError(w)
+	base.WriteJSONInternalError(w, err)
 }

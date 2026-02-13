@@ -9,13 +9,20 @@ import (
 	"github.com/google/uuid"
 )
 
+type TokenMaker interface {
+	GenerateToken(JWTData) (string, *Payload, error)
+	VerifyToken(string) (*Payload, error)
+}
+
+var _ TokenMaker = (*JWTAuthMaker)(nil)
+
 var ErrExpired = errors.New("token expired")
 
 type JWTData struct {
-	Duration    time.Duration
-	UserID      uuid.UUID
 	Role        string
 	ServiceName string
+	Duration    time.Duration
+	UserID      uuid.UUID
 }
 
 func NewJWTData(userid uuid.UUID, role string, duration time.Duration, svcName string) JWTData {
@@ -28,8 +35,9 @@ func NewJWTData(userid uuid.UUID, role string, duration time.Duration, svcName s
 }
 
 type Payload struct {
-	UserID uuid.UUID `json:"user_id"`
 	RoleID string    `json:"role_id"`
+	UserID uuid.UUID `json:"user_id"`
+
 	jwt.RegisteredClaims
 }
 
@@ -38,7 +46,6 @@ func NewPayload(userID uuid.UUID, roleid string, duration time.Duration, svcName
 	if err != nil {
 		return nil, err
 	}
-	//:Todo still thiniking of token if signatures especailly on tenant customers and global tenantes
 
 	payload := &Payload{
 		UserID: userID,

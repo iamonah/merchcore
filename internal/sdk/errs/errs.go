@@ -8,9 +8,10 @@ import (
 )
 
 type AppErr struct {
+	Err      string      `json:"error"`
 	Code     int         `json:"code"`
 	Message  string      `json:"message,omitempty"`
-	Fields   FieldErrors `json:"fields,omitempty"`
+	Fields   *FieldErrors `json:"fields,omitempty"`
 	FuncName string      `json:"-"`
 	FileName string      `json:"-"`
 }
@@ -29,16 +30,18 @@ func New(code ErrCode, err error) *AppErr {
 	var fields *FieldErrors
 	if errors.As(err, &fields) && len(*fields) > 0 {
 		return &AppErr{
-			Code:     HTTPStatus[code],
+			Err:      code.String(),
+			Code:     code.HTTPStatus(),
 			Message:  "Validation failed",
-			Fields:   *fields,
+			Fields:   fields,
 			FuncName: runtime.FuncForPC(pc).Name(),
 			FileName: fmt.Sprintf("%s:%d", filename, line),
 		}
 	}
 
 	return &AppErr{
-		Code:     HTTPStatus[code],
+		Err:      code.String(),
+		Code:     code.HTTPStatus(),
 		Message:  err.Error(),
 		FuncName: runtime.FuncForPC(pc).Name(),
 		FileName: fmt.Sprintf("%s:%d", filename, line),
@@ -49,13 +52,14 @@ func Newf(code ErrCode, format string, v ...any) *AppErr {
 	pc, filename, line, _ := runtime.Caller(1)
 
 	return &AppErr{
-		Code:     HTTPStatus[code],
+		Code:     code.HTTPStatus(),
 		Message:  fmt.Errorf(format, v...).Error(),
 		FuncName: runtime.FuncForPC(pc).Name(),
 		FileName: fmt.Sprintf("%s:%d", filename, line),
 	}
 }
 
+//errs we expect are bound to happen
 type DomainError struct {
 	Msg  error
 	Code ErrCode
@@ -69,8 +73,7 @@ func (e *DomainError) Unwrap() error {
 	return e.Msg
 }
 
-func NewDomainError(code ErrCode, msg error) error {
-	err := fmt.Errorf("%w", msg)
+func NewDomainError(code ErrCode, err error) error {
 	return &DomainError{Code: code, Msg: err}
 }
 
@@ -87,14 +90,14 @@ type FieldError struct {
 	Err   string `json:"error"`
 }
 
-type FieldErrors []FieldError
+type FieldErrors []*FieldError
 
 func NewFieldErrors() *FieldErrors {
 	return &FieldErrors{}
 }
 
 func (fe *FieldErrors) AddFieldError(field string, err error) {
-	*fe = append(*fe, FieldError{
+	*fe = append(*fe, &FieldError{
 		Field: field,
 		Err:   err.Error(),
 	})

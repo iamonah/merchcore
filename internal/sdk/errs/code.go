@@ -4,7 +4,21 @@ import (
 	"net/http"
 )
 
-type ErrCode int
+type ErrCode uint32
+
+func (e ErrCode) String() string {
+	if name, ok := CodeNames[e]; ok {
+		return name
+	}
+	return "unknown_error"
+}
+
+func (e ErrCode) HTTPStatus() int {
+	if status, ok := HTTPStatus[e]; ok {
+		return status
+	}
+	return http.StatusInternalServerError
+}
 
 const (
 	None ErrCode = iota

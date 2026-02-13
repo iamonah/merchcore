@@ -10,7 +10,7 @@ import (
 )
 
 func (us *UserService) Authenticate(w http.ResponseWriter, r *http.Request) error {
-	reqID, err := GetReqIDCTX(r)
+	reqID, err := base.GetReqIDCTX(r)
 	if err != nil {
 		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
 	}
@@ -71,11 +71,11 @@ func (us *UserService) Authenticate(w http.ResponseWriter, r *http.Request) erro
 }
 
 func (us *UserService) SignOut(w http.ResponseWriter, r *http.Request) error {
-	reqID, err := GetReqIDCTX(r)
+	reqID, err := base.GetReqIDCTX(r)
 	if err != nil {
 		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
 	}
-	pl, err := GetJWTPayloadCTX(r)
+	pl, err := base.GetJWTPayloadCTX(r)
 	if err != nil {
 		return errs.New(errs.Unauthenticated, errors.New("unauthorized"))
 	}
@@ -105,11 +105,11 @@ func (us *UserService) SignOut(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (us *UserService) RenewAccessToken(w http.ResponseWriter, r *http.Request) error {
-	reqID, err := GetReqIDCTX(r)
+	reqID, err := base.GetReqIDCTX(r)
 	if err != nil {
 		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
 	}
-	pl, err := GetJWTPayloadCTX(r)
+	pl, err := base.GetJWTPayloadCTX(r)
 	if err != nil {
 		return errs.New(errs.Unauthenticated, errors.New("unauthorized"))
 	}

@@ -44,7 +44,7 @@ func (us *UserService) ForgotPassword(w http.ResponseWriter, r *http.Request) er
 
 // followup for forgotpassword
 func (us *UserService) ResetPassword(w http.ResponseWriter, r *http.Request) error {
-	reqID, err := GetReqIDCTX(r)
+	reqID, err := base.GetReqIDCTX(r)
 	if err != nil {
 		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
 	}
@@ -80,11 +80,11 @@ func (us *UserService) ResetPassword(w http.ResponseWriter, r *http.Request) err
 }
 
 func (us *UserService) ChangePassword(w http.ResponseWriter, r *http.Request) error {
-	reqID, err := GetReqIDCTX(r)
+	reqID, err := base.GetReqIDCTX(r)
 	if err != nil {
 		return errs.Newf(errs.Internal, "getreqidCTX: %s", err)
 	}
-	pl, err := GetJWTPayloadCTX(r)
+	pl, err := base.GetJWTPayloadCTX(r)
 	if err != nil {
 		return errs.New(errs.Unauthenticated, errors.New("unauthorized"))
 	}
@@ -100,7 +100,7 @@ func (us *UserService) ChangePassword(w http.ResponseWriter, r *http.Request) er
 
 	user, err := us.users.ChangePassword(r.Context(), pl.UserID, req.OldPassword, req.NewPassword)
 	if err != nil {
-		return errs.Newf(errs.Internal, "changepassoword: userID[%v]: %s", pl.UserID, err)
+		return errs.Newf(errs.Internal, "changepassword: userID[%v]: %s", pl.UserID, err)
 	}
 
 	us.log.Info().

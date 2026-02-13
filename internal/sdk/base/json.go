@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 
 	"github.com/iamonah/merchcore/internal/sdk/errs"
 	"github.com/rs/zerolog/log"
 )
 
 // encoding
-func WriteJSON(w http.ResponseWriter, status int, data interface{}) error {
+func WriteJSON(w http.ResponseWriter, status int, data any) error {
 	// 204 means "No Content", so skip writing a body.
 	if status == http.StatusNoContent {
 		w.WriteHeader(http.StatusNoContent)
@@ -33,7 +34,10 @@ func WriteJSON(w http.ResponseWriter, status int, data interface{}) error {
 }
 
 // decoding
-func ReadJSON(r *http.Request, dst interface{}) error {
+func ReadJSON(r *http.Request, dst any) error {
+	if reflect.TypeOf(dst).Kind() != reflect.Pointer {
+		panic("invalid pointer addres for dst")
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return err
@@ -58,18 +62,15 @@ func WriteJSONError(w http.ResponseWriter, errvalue error) {
 		}
 		return
 	}
-	WriteJSONInternalError(w)
+	WriteJSONInternalError(w, errvalue)
 
 }
 
-func WriteJSONInternalError(w http.ResponseWriter) {
-	appError := errs.AppErr{
-		Code:    http.StatusInternalServerError,
-		Message: http.StatusText(http.StatusInternalServerError),
+func WriteJSONInternalError(w http.ResponseWriter, errs error) {
+	if err := WriteJSON(w, http.StatusInternalServerError, errs); err != nil {
+		log.Error().Err(err).Msg("writejson")
+		w.Header().Add("Connection", "close")
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	err := WriteJSON(w, http.StatusInternalServerError, appError)
-	log.Error().Err(err).Msg("writejson")
-	w.Header().Add("Connection", "close")
-	w.WriteHeader(http.StatusInternalServerError)
 }

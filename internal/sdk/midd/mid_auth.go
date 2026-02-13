@@ -1,4 +1,4 @@
-package middleware
+package midd
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/iamonah/merchcore/internal/sdk/authz"
-	"github.com/iamonah/merchcore/internal/sdk/base"
 	"github.com/iamonah/merchcore/internal/sdk/errs"
 )
 
@@ -19,8 +18,8 @@ const (
 	AuthContextPayloadKey   AuthKey = "authorization_payload"
 )
 
-func AuthBearer(authMaker authz.TokenMaker) base.Middleware {
-	return func(next base.HTTPHandlerWithErr) base.HTTPHandlerWithErr {
+func AuthBearer(authMaker authz.TokenMaker) Middleware {
+	return func(next HTTPHandlerWithErr) HTTPHandlerWithErr {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			authHeader := r.Header.Get(string(AuthHeaderAuthorization))
 			if authHeader == "" {
@@ -46,4 +45,4 @@ func AuthBearer(authMaker authz.TokenMaker) base.Middleware {
 	}
 }
 
-//use redis for session middleware()
+//use redis for session midd()

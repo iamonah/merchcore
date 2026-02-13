@@ -5,14 +5,19 @@ import (
 
 	"github.com/iamonah/merchcore/internal/app/auth"
 	"github.com/iamonah/merchcore/internal/sdk/authz"
-	"github.com/iamonah/merchcore/internal/sdk/middleware"
+	"github.com/iamonah/merchcore/internal/sdk/midd"
 	"github.com/rs/zerolog"
 )
 
-func SetupRouter(us *auth.UserService, log *zerolog.Logger, maker *authz.JWTAuthMaker) http.Handler {
-	app := NewApp(log, middleware.RecoverPanic(log))
+func SetupRouter(
+	us *auth.UserService,
+	log *zerolog.Logger,
+	maker *authz.JWTAuthMaker,
+	// te *store.TenantService,
+) http.Handler {
+	app := NewApp(log, midd.RecoverPanic(log))
 
-	authbearer := middleware.AuthBearer(maker)
+	authbearer := midd.AuthBearer(maker)
 	// version := "1"
 	app.HandleFunc(http.MethodPost, "/auth/signin", us.Authenticate)
 	app.HandleFunc(http.MethodPost, "/auth/register", us.RegisterUser)
@@ -27,7 +32,7 @@ func SetupRouter(us *auth.UserService, log *zerolog.Logger, maker *authz.JWTAuth
 	// app.HandleFunc(http.MethodGet, "/api/stores/:id", us.GetStore)
 	// app.HandleFunc(http.MethodPut, "/api/stores/:id", us.UpdateStore)
 	// app.HandleFunc(http.MethodDelete, "/api/stores/:id", us.DeleteStore)
-	// app.HandleFunc(http.MethodPost, "/api/create-stores/", us.CreateStore)
+	// app.HandleFunc(http.MethodPost, "/api/create-stores/", te.CreateTenant)
 
 	// 🏬 Store Management
 	// ------------------------------

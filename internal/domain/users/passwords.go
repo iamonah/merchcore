@@ -9,6 +9,7 @@ import (
 
 const HashCost = 12
 
+// Todo: handle the password to long approach sha256->hex before bycrpt
 var ErrInvalidPassword = errors.New("incorrect password")
 
 func HashPassword(password []byte) ([]byte, error) {
@@ -33,4 +34,3 @@ func ComparePassword(storedHash, password []byte) error {
 	}
 	return nil
 }
-

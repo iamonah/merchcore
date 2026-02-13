@@ -25,10 +25,9 @@ func SetupLog(cfg *config.Config, logService string) (*zerolog.Logger, error) {
 
 	var output io.Writer
 	if level.String() == "info" && env == Production {
-		//logService
+		//place for log injection
 	} else {
-		// output = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
-		output = os.Stdout
+		output = zerolog.ConsoleWriter{Out: os.Stdout}
 	}
 
 	build, _ := debug.ReadBuildInfo()
@@ -41,7 +40,6 @@ func SetupLog(cfg *config.Config, logService string) (*zerolog.Logger, error) {
 		Str("environment", string(env)).
 		Logger()
 
-	// Include stack traces for errors in development
 	if !cfg.Observability.IsProduction() {
 		logger = logger.With().Stack().Logger()
 	}

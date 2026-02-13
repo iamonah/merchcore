@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/spf13/viper"
 )
 
@@ -28,7 +28,7 @@ type Primary struct {
 
 type ServerConfig struct {
 	ReadTimeout        time.Duration `mapstructure:"READ_TIMEOUT" validate:"required"`
-	WriteTimeout       time.Duration `mapstructure:"WRITE_TIMEOUT" validate:"required"`
+	WriteTimeout       time.Duration `mapstructure:"WRITE_TIMEOUT" vdalidate:"required"`
 	IdleTimeout        time.Duration `mapstructure:"IDLE_TIMEOUT" validate:"required"`
 	Port               string        `mapstructure:"PORT" validate:"required"`
 	CORSAllowedOrigins []string      `mapstructure:"CORS_ALLOWED_ORIGINS" validate:"required"`
@@ -61,7 +61,6 @@ type MailerConfig struct {
 	SMTPPort     int    `mapstructure:"MAILER_SMTP_PORT" validate:"required"`
 }
 
-
 type AuthConfig struct {
 	AccessTokenLifeTime  time.Duration `mapstructure:"ACCESS_TOKEN_LIFETIME" validate:"required"`
 	RefreshTokenLifeTime time.Duration `mapstructure:"REFRESH_TOKEN_LIFETIME" validate:"required"`
@@ -77,72 +76,36 @@ type AWSS3Config struct {
 	EndpointURL     string `mapstructure:"ENDPOINT_URL" validate:"required"`
 }
 
-// transformFlatToNested will scan viper.AllKeys() and for any key that contains
-// an underscore it will split at the first underscore and re-set a nested key in viper.
-// Example:
-//
-//	observability_new_relic_enabled -> viper.Set("observability.new_relic_enabled", value)
-func transformFlatToNested() {
-	keys := viper.AllKeys()
-
-	for _, k := range keys {
-		if strings.Contains(k, ".") || !strings.Contains(k, "_") {
-			continue
-		}
-
-		parts := strings.SplitN(k, "_", 2)
-		if len(parts) != 2 {
-			continue
-		}
-
-		section := parts[0]
-		rest := parts[1]
-
-		nestedKey := fmt.Sprintf("%s.%s", section, rest)
-
-		val := viper.Get(k)
-		viper.Set(nestedKey, val)
-	}
-}
-
 func LoadConfig(path string) (*Config, error) {
-	var config Config
+	var cfg Config
 
 	viper.AddConfigPath(path)
-	viper.SetConfigName("app")
-	viper.SetConfigType("env")
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
 	viper.AutomaticEnv()
 
-	err := viper.ReadInConfig()
-	if err != nil {
-		return nil, fmt.Errorf("reading config file: %v", err)
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 
-	transformFlatToNested()
-
-	err = viper.Unmarshal(&config)
-	if err != nil {
+	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("unmarshalling config: %w", err)
 	}
 
-	if err = config.Logging.Validate(); err != nil {
-		return nil, fmt.Errorf("validateloggin: %w", err)
+	// Validate special sections
+	if err := cfg.Logging.Validate(); err != nil {
+		return nil, fmt.Errorf("logging validation: %w", err)
 	}
 
-	if err = config.Observability.Validate(); err != nil {
-		return nil, fmt.Errorf("validateobservability: %w", err)
+	if err := cfg.Observability.Validate(); err != nil {
+		return nil, fmt.Errorf("observability validation: %w", err)
 	}
-	// for _, key := range viper.AllKeys() {
-	// 	fmt.Printf("%s = %v\n", key, viper.Get(key))
-	// }
 
-	// fmt.Printf("%+v", config)
-	// validate := validator.New()
+	validate := validator.New()
+	err := validate.Struct(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
+	}
 
-	// err = validate.Struct(config)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("config validation failed: %w", err)
-	// }
-
-	return &config, nil
+	return &cfg, nil
 }

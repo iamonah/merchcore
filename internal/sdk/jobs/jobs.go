@@ -18,7 +18,7 @@ import (
 
 const (
 	TypeEmailVerify = "email:verify"
-	// TypeEmailWelcome = "email:welcome"
+	TypeSetupStore  = "store:setup"
 	TypeImageResize = "image:resize"
 )
 
@@ -49,14 +49,13 @@ func (jc *JobClient) CloseClient() {
 }
 
 type VerifyEmailPayload struct {
-	UserID         uuid.UUID
 	Email          string
 	FirstName      string
 	Code           string
 	UnsubscribeURL string
+	UserID         uuid.UUID
 }
 
-// TODO: Unsubscribe feature
 func (jq *JobClient) WelcomeEmailJob(user *users.User, code string) error {
 	tokenBytes := make([]byte, 32)
 	rand.Read(tokenBytes)
@@ -95,7 +94,6 @@ func (jq *JobClient) WelcomeEmailJob(user *users.User, code string) error {
 	return nil
 }
 
-// for resending a an activation token
 func (jq *JobClient) ResendVerificationTokenJob(firstname, code string, userID uuid.UUID) error {
 	var buf bytes.Buffer
 	payload := VerifyEmailPayload{
@@ -126,7 +124,6 @@ func (jq *JobClient) ResendVerificationTokenJob(firstname, code string, userID u
 	return nil
 }
 
-// for reseting a password
 func (jq *JobClient) PasswordResetEmailJob(email string, token string, userId uuid.UUID) error {
 	return nil
 }

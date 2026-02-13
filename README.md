@@ -1,10 +1,6 @@
-## MerchCore SaaS E-Commerce Platform
+# MerchCore SaaS E-Commerce Platform
 
-<<<<<<< Updated upstream
 A modern SaaS e-commerce platform that enables small businesses to effortlessly create and manage online stores. It provides secure payment options using both stablecoins and traditional **FIAT**, giving merchants flexibility in how they operate and customers freedom in how they pay.
-=======
-A modern SaaS e-commerce platform that enables small businesses to effortlessly create and manage online stores. It provides secure payment options using both stablecoins and traditional **FIAT**, giving merchcoreants flexibility in how they operate and customers freedom in how they pay.
->>>>>>> Stashed changes
 
 Built with **Go** and following Clean Architecture principles, Storefront separates its core domain logic from infrastructure, ensuring scalability, maintainability, and testability.
 
@@ -25,14 +21,11 @@ Built with **Go** and following Clean Architecture principles, Storefront separa
 ## 🏗️ Tech Stack
 
 - **Backend**: Go
-- **Database**: PostgreSQL 
+- **Database**: PostgreSQL
 - **Cache / Jobs**: Redis
 - **Auth**: JWT (JSON Web Tokens)
 - **Architecture**: Clean Architecture + Domain-Driven Design principles
 - **Containerization**: Docker & Docker Compose
 - **Logging**: Zerolog
-<<<<<<< Updated upstream
 
 ***
-=======
->>>>>>> Stashed changes

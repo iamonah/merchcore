@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// IsPrivate checks whether an IP is private
+// Checking for private ips (ipv4 or ipv6) addresses
 func IsPrivate(ip string) bool {
 	parsedIP := net.ParseIP(ip)
 	if parsedIP == nil {
@@ -41,7 +41,7 @@ func mustCIDR(cidr string) *net.IPNet {
 	return block
 }
 
-// GetClientIP extracts the best IP address from headers or RemoteAddr
+// extracts IP  from (X-Rorwarded-For or X-Real-IP) defaults to RemoteAddr
 func GetClientIP(r *http.Request) string {
 	xff := r.Header.Get("X-Forwarded-For")
 	if xff != "" {

@@ -47,6 +47,8 @@ func StartServer(cfg *config.Config, mux http.Handler, log *zerolog.Logger) erro
 		return fmt.Errorf("server closed unexpectedly: %w", err)
 	}
 
+
+	{}
 	log.Info().Msg("Server shutdown complete")
 	return nil
 }

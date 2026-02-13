@@ -16,10 +16,13 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	cfg = &config.Config{}
 	var err error
-	cfg, err = config.LoadConfig(".")
-	if err != nil {
-		panic(err)
+	for _, p := range []string{".", "../../../.."} {
+		cfg, err = config.LoadConfig(p)
+		if err == nil {
+			break
+		}
 	}
 
 	log = zerolog.New(os.Stdout)

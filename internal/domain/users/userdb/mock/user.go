@@ -128,7 +128,6 @@ func (mr *MockUserRepositoryMockRecorder) FindUserByEmail(ctx, email any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindUserByEmail", reflect.TypeOf((*MockUserRepository)(nil).FindUserByEmail), ctx, email)
 }
 
-// FindUserByID mocks base method.
 func (m *MockUserRepository) FindUserByID(ctx context.Context, userID uuid.UUID) (*users.User, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindUserByID", ctx, userID)

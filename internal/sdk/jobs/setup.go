@@ -53,7 +53,7 @@ func (js *JobProcessor) Start() error {
 
 func RunJobService(cfg config.RedisConfig, logger *zerolog.Logger, mailer *mailer.Mail) error {
 	jobProcessor := NewJobProcessor(cfg, logger, mailer)
-	defer jobProcessor.server.Stop() // ensure workers stop on shutdown
+	defer jobProcessor.server.Stop()
 
 	jobProcessor.logger.Info().Msg("start job service")
 	err := jobProcessor.Start()

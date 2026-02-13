@@ -10,7 +10,6 @@ import (
 	"gopkg.in/gomail.v2"
 )
 
-//go:embed templates
 var templateFS embed.FS
 
 type Mailer interface {
@@ -18,8 +17,8 @@ type Mailer interface {
 }
 
 type Mail struct {
-	dialer *gomail.Dialer
 	sender string
+	dialer *gomail.Dialer
 }
 
 func NewMailTrap(cfg *config.MailerConfig) *Mail {
@@ -58,7 +57,7 @@ func (m *Mail) Send(templateFile string, reciever string, data any) error {
 	message.SetHeader("From", m.sender)
 	message.SetHeader("To", reciever)
 	message.SetHeader("Subject", subjectBuffer.String())
-	message.SetHeader("List-Unsubscribe", fmt.Sprintf(`<mailto:unsubscribe@yourapp.com?subject=unsub-%s>, <https://yourapp.com/unsubscribe?email=%s>`, reciever, reciever)) // Add this header
+	message.SetHeader("List-Unsubscribe", fmt.Sprintf(`<mailto:unsubscribe@yourapp.com?subject=unsub-%s>, <https://yourapp.com/unsubscribe?email=%s>`, reciever, reciever))
 	message.SetBody("text/plain", plainbodyBuffer.String())
 
 	message.AddAlternative("text/html", htmlbodyBuffer.String())

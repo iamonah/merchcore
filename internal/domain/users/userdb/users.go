@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/mail"
 
-	"github.com/iamonah/merchcore/internal/domain/shared/contact"
-	"github.com/iamonah/merchcore/internal/domain/shared/role"
+	"github.com/iamonah/merchcore/internal/domain/types/contact"
+	"github.com/iamonah/merchcore/internal/domain/types/role"
 	"github.com/iamonah/merchcore/internal/domain/users"
 	"github.com/iamonah/merchcore/internal/infra/database"
 
@@ -157,7 +157,7 @@ func (us *userdb) GetUserPhoneNumber(ctx context.Context, phone string) error {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
-		return fmt.Errorf("geruserbyphonenumber: %w: %w", users.ErrDatabase, err)
+		return fmt.Errorf("%w: %w", users.ErrDatabase, err)
 	}
 	return users.ErrPhoneNumberExists
 }
@@ -190,7 +190,7 @@ func (us *userdb) UpdateUser(ctx context.Context, usr *users.User) error {
 		usr.PasswordHash,
 		usr.ProviderID,
 		usr.Contact.Number,
-		usr.Provider,
+		usr.Provider.String(),
 		usr.Contact.Country,
 		usr.Role.String(),
 		usr.NumOfStore,

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/iamonah/merchcore/internal/domain/shared/contact"
-	"github.com/iamonah/merchcore/internal/domain/shared/role"
+	"github.com/iamonah/merchcore/internal/domain/types/contact"
+	"github.com/iamonah/merchcore/internal/domain/types/role"
 )
 
 type UserCreate struct {

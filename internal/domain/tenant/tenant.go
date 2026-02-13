@@ -6,28 +6,29 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/iamonah/merchcore/internal/domain/shared/address"
+	"github.com/iamonah/merchcore/internal/domain/types/address"
 	"github.com/iamonah/merchcore/internal/sdk/errs"
 
 	"github.com/google/uuid"
 )
 
 type TenantProfile struct {
-	ID           uuid.UUID
-	UserID       uuid.UUID
-	BusinessName string
-	Description  string
-	Subdomain    *string
-	Domain       *string
-	LogoURL      string
-	Status       TenantStatus
-	Plan         PlanType
-	BusinessMode BusinessMode
-	Addresses    address.Addresses
-	TrialStartAt *time.Time
-	TrialEndAt   *time.Time
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID                uuid.UUID
+	UserID            uuid.UUID
+	BusinessName      string
+	Description       string
+	Subdomain         *string
+	Domain            *string
+	LogoURL           string
+	Status            TenantStatus
+	Plan              PlanType
+	BusinessMode      BusinessMode
+	Addresses         address.Addresses
+	TrialStartAt      *time.Time
+	TrialEndAt        *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	NumberOfEmployees int32
 }
 
 // if logo is uploaded upload to s3 and get url here
@@ -43,10 +44,11 @@ func NewTenantProfile(storeInfo CreateTenant) (*TenantProfile, error) {
 	description := strings.TrimSpace(storeInfo.Description)
 	if description == "" {
 		fieldErrs.AddFieldError("description", errors.New("description required"))
-	} else if utf8.RuneCountInString(description) > 255 {
+	} else if utf8.RuneCountInString(description) > 255 { //max description
 		fieldErrs.AddFieldError("description", errors.New("cannot be more than 255 characters"))
 	}
 
+	//Todo: check if domain exist before allow
 	var subdomain string
 	if storeInfo.Subdomain == nil {
 		subdomain = strings.ToLower(strings.ReplaceAll(businessName, " ", "")) + ".merchcore.com"
@@ -64,6 +66,20 @@ func NewTenantProfile(storeInfo CreateTenant) (*TenantProfile, error) {
 		fieldErrs.AddFieldError("business_mode", errors.New("invalid business mode"))
 	}
 
+	if _, err := ParseBusinessCategory(storeInfo.BusinessCategory); err != nil {
+		fieldErrs.AddFieldError("business_category", errors.New("invalid business category"))
+	}
+
+	if storeInfo.LogoURL != nil {
+		logo := strings.TrimSpace(*storeInfo.LogoURL)
+		storeInfo.LogoURL = &logo
+	}
+
+	if storeInfo.Domain != nil {
+		domain := strings.TrimSpace(*storeInfo.Domain)
+		storeInfo.Domain = &domain
+	}
+
 	var addresses address.Addresses
 
 	if mode == BusinessModeHybrid {
@@ -74,7 +90,7 @@ func NewTenantProfile(storeInfo CreateTenant) (*TenantProfile, error) {
 			if err != nil {
 				fieldErrs.AddFieldError("business_address", err)
 			} else {
-				addresses.AddAddresses(*addr)
+				addresses = addresses.AddAddresses(*addr)
 			}
 		}
 	}
@@ -87,7 +103,7 @@ func NewTenantProfile(storeInfo CreateTenant) (*TenantProfile, error) {
 			if err != nil {
 				fieldErrs.AddFieldError("billing_address", err)
 			} else {
-				addresses.AddAddresses(*addr)
+				addresses = addresses.AddAddresses(*addr)
 			}
 		}
 	}
@@ -104,14 +120,25 @@ func NewTenantProfile(storeInfo CreateTenant) (*TenantProfile, error) {
 		trialEnd = &end
 	}
 
+	logoURL := ""
+	if storeInfo.LogoURL != nil {
+		logoURL = *storeInfo.LogoURL
+	}
+
+	domain := storeInfo.Domain
+	if domain == nil || strings.TrimSpace(*domain) == "" {
+		defaultDomain := subdomain
+		domain = &defaultDomain
+	}
+
 	tenant := &TenantProfile{
 		ID:           uuid.New(),
 		UserID:       storeInfo.UserID,
 		BusinessName: businessName,
 		Description:  description,
 		Subdomain:    &subdomain,
-		Domain:       storeInfo.Domain,
-		LogoURL:      *storeInfo.LogoURL,
+		Domain:       domain,
+		LogoURL:      logoURL,
 		Status:       TenantStatusMaintenance,
 		Plan:         plan,
 		BusinessMode: mode,

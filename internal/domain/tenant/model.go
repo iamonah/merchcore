@@ -4,21 +4,22 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/iamonah/merchcore/internal/domain/shared/address"
+	"github.com/iamonah/merchcore/internal/domain/types/address"
 )
 
 type CreateTenant struct {
-	UserID           uuid.UUID
-	BusinessName     string
-	Description      string
-	Subdomain        *string
-	Domain           *string
-	LogoURL          *string
-	BusinessMode     string
-	BusinessCategory string
-	Plan             string
-	BusinessAddress  *AddressInput
-	BillingAddress   *AddressInput
+	UserID            uuid.UUID
+	BusinessName      string
+	Description       string
+	Subdomain         *string
+	Domain            *string
+	LogoURL           *string
+	BusinessMode      string
+	BusinessCategory  string
+	Plan              string
+	BusinessAddress   *AddressInput
+	BillingAddress    *AddressInput
+	NumberOfEmployees int32
 }
 
 // Primitive form used only for JSON input (e.g. during tenant creation)
@@ -38,7 +39,7 @@ func NewAddress(p AddressInput) (*address.Address, error) {
 	if err != nil {
 		return nil, err
 	}
-	if addtype == address.AddressTypeBilling || addtype == address.AddressTypeBusiness {
+	if addtype != address.AddressTypeBilling && addtype != address.AddressTypeBusiness {
 		return nil, fmt.Errorf("invalid store type (business or billing)")
 	}
 	return &address.Address{

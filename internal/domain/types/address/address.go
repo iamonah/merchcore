@@ -24,9 +24,9 @@ func newAddressTypes(v string) AddressType {
 }
 
 func ParseAddress(a string) (AddressType, error) {
-	v, ok := addressTypes[a]
+	v, ok := addressTypes[strings.ToLower(a)]
 	if !ok {
-		return "", fmt.Errorf("invalid addresstype: %v", v)
+		return "", fmt.Errorf("invalid addresstype: %v", a)
 	}
 	return v, nil
 }

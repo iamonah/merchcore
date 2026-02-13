@@ -6,8 +6,8 @@ import (
 	"net/mail"
 	"time"
 
-	"github.com/iamonah/merchcore/internal/domain/shared/contact"
-	"github.com/iamonah/merchcore/internal/domain/shared/role"
+	"github.com/iamonah/merchcore/internal/domain/types/contact"
+	"github.com/iamonah/merchcore/internal/domain/types/role"
 	"github.com/iamonah/merchcore/internal/sdk/errs"
 
 	"github.com/google/uuid"

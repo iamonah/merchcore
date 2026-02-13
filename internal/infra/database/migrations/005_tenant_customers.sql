@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS tenant_customers (
     id         BIGSERIAL PRIMARY KEY,
-    tenant_id  UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
-    user_id    UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    tenant_id  UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     joined_at  TIMESTAMPTZ DEFAULT now(),
     UNIQUE (tenant_id, user_id)
 );

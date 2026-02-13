@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS sessions (
     id              UUID PRIMARY KEY,
-    user_id         UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     refresh_token   BYTEA NOT NULL,
     user_agent      TEXT NOT NULL,
     client_ip       TEXT NOT NULL,
@@ -13,7 +13,7 @@ CREATE INDEX IF NOT EXISTS sessions_refresh_token_idx ON sessions(refresh_token)
 
 CREATE TABLE IF NOT EXISTS tokens(
     hash BYTEA PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expiry TIMESTAMPTZ NOT NULL,
     scope TEXT NOT NULL
 );

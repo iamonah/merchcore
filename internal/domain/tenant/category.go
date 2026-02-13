@@ -37,7 +37,7 @@ func newBusinessCategory(v string) BusinessCategory {
 }
 
 func ParseBusinessCategory(category string) (BusinessCategory, error) {
-	v, ok := categories[category]
+	v, ok := categories[strings.ToLower(category)]
 	if !ok {
 		return "", fmt.Errorf("invalid businesscategory: %v", category)
 	}

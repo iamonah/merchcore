@@ -35,7 +35,7 @@ func GenerateOTP(userId uuid.UUID, expiry time.Duration, scope tokenscope) (*Tok
 	if err != nil {
 		return nil, err
 	}
-	otp := fmt.Sprintf("%06d", n)
+	otp := fmt.Sprintf("%06d", n.Int64())
 
 	hashOtp := sha256.Sum256([]byte(otp))
 	return &Token{
@@ -106,7 +106,7 @@ func (s *UserBusiness) RenewAccessToken(ctx context.Context, payload *authz.Payl
 
 func (s *UserBusiness) BlockSession(ctx context.Context, userID uuid.UUID, refreshToken string) error {
 	shaToken := sha256.Sum256([]byte(refreshToken))
-	//del cache
+
 	acckey := SessionAccessKeys(userID)
 	err := s.cache.Delete(ctx, acckey)
 	if err != nil {

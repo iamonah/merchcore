@@ -5,6 +5,7 @@ import (
 	"github.com/iamonah/merchcore/internal/config"
 	"github.com/iamonah/merchcore/internal/domain/users"
 	"github.com/iamonah/merchcore/internal/domain/users/userdb"
+	"github.com/iamonah/merchcore/internal/infra/cache"
 	"github.com/iamonah/merchcore/internal/infra/database"
 	"github.com/iamonah/merchcore/internal/sdk/authz"
 	"github.com/iamonah/merchcore/internal/sdk/jobs"
@@ -44,15 +45,24 @@ func main() {
 	jwtMaker := authz.NewJWTMaker(cfg.Auth.TokenSymmetricKey)
 	redisClient := jobs.NewJobClient(cfg.Redis, logger)
 	mailer := mailer.NewMailTrap(&cfg.Mailer)
+	cache := cache.NewCache(&cfg.Redis)
 
+	//userbusiness
+	ubusiness, err := users.NewUserBusiness(
+		users.WithUserRepository(userdb.Newuserdb(dbClient.Pool)),
+		users.WithTrxManager(database.NewTRXManager(dbClient.Pool, logger)),
+		users.WithAuthz(&jwtMaker),
+		users.WithConfigs(cfg),
+		users.WithCache(cache),
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("user business init failed")
+
+	}
+	//userservice
 	userService, err := auth.NewUserService(
 		auth.WithAuth(jwtMaker),
-		auth.WithUserBusiness(users.NewUserBusiness(
-			userdb.Newuserdb(dbClient.Pool),
-			database.NewTRXManager(dbClient.Pool, logger),
-			&jwtMaker,
-			cfg,
-		)),
+		auth.WithUserBusiness(ubusiness),
 		auth.WithJob(redisClient),
 		auth.WithLog(logger),
 	)

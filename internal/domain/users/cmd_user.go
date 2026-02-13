@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,7 +15,6 @@ import (
 	"github.com/iamonah/merchcore/internal/infra/database"
 	"github.com/iamonah/merchcore/internal/sdk/authz"
 	"github.com/iamonah/merchcore/internal/sdk/errs"
-	// Global logger
 )
 
 type UserBusiness struct {
@@ -25,13 +25,31 @@ type UserBusiness struct {
 	cache  cache.Cache
 }
 
-func NewUserBusiness(store UserRepository, trx *database.TRXManager, authz *authz.JWTAuthMaker, cfg *config.Config) *UserBusiness {
-	return &UserBusiness{
-		storer: store,
-		trx:    trx,
-		authz:  authz,
-		config: cfg,
+type ExtUserBusiness interface {
+	CreateUser(ctx context.Context, info UserCreate) (User, Token, error)
+	UpdateUser(ctx context.Context, userID uuid.UUID, uu UpdateUser) (*User, error)
+	ActivateUser(ctx context.Context, usrID uuid.UUID, token string) error
+	ResendActivationToken(ctx context.Context, userID uuid.UUID) (User, Token, error)
+	Authenticate(ctx context.Context, email *mail.Address, password string) (User, error)
+	CreateSession(ctx context.Context, user User, userAgent, clientIP string) (*SessionData, error)
+	ForgetPassword(ctx context.Context, email *mail.Address) (*User, *Token, error)
+	PasswordReset(ctx context.Context, newPass string, token string) (uuid.UUID, error)
+	ChangePassword(ctx context.Context, userId uuid.UUID, oldPass, newPass string) (User, error)
+	RenewAccessToken(ctx context.Context, payload *authz.Payload) (tokenData, error)
+	BlockSession(ctx context.Context, userID uuid.UUID, refreshToken string) error
+}
+
+type UserBusinessCfg func(ub *UserBusiness) error
+
+func NewUserBusiness(cfgs ...UserBusinessCfg) (*UserBusiness, error) {
+	usb := &UserBusiness{}
+	for _, cfg := range cfgs {
+		err := cfg(usb)
+		if err != nil {
+			return nil, err
+		}
 	}
+	return usb, nil
 }
 
 func (s *UserBusiness) CreateUser(ctx context.Context, info UserCreate) (User, Token, error) {
@@ -44,7 +62,7 @@ func (s *UserBusiness) CreateUser(ctx context.Context, info UserCreate) (User, T
 	err = s.trx.WithTransaction(ctx, func(ctx context.Context) error {
 		if err := s.storer.CreateUser(ctx, &user); err != nil {
 			if errors.Is(err, ErrUserIDConflict) {
-				// Retry with a new UUID once
+
 				user.UserID = uuid.New()
 				if err := s.storer.CreateUser(ctx, &user); err != nil {
 					return fmt.Errorf("createuserretry: %w", err)
@@ -77,6 +95,7 @@ func (s *UserBusiness) CreateUser(ctx context.Context, info UserCreate) (User, T
 	return user, token, nil
 }
 
+// TODO: update functionlity not complete yet
 func (s *UserBusiness) UpdateUser(ctx context.Context, userID uuid.UUID, uu UpdateUser) (*User, error) {
 	usr, err := s.storer.GetUserByID(ctx, userID)
 	if err != nil {
@@ -185,8 +204,8 @@ func (s *UserBusiness) Authenticate(ctx context.Context, email *mail.Address, pa
 		return User{}, fmt.Errorf("getinguserbyemail: %w", err)
 	}
 
-	if len(user.PasswordHash) == 0 {
-		return User{}, errs.NewDomainError(errs.Internal, errors.New("invalid user data"))
+	if len(strings.TrimSpace(password)) == 0 {
+		return User{}, errs.NewDomainError(errs.Internal, errors.New("invalid credentials"))
 	}
 	if err := ComparePassword(user.PasswordHash, []byte(password)); err != nil {
 		if errors.Is(err, ErrInvalidPassword) {
@@ -274,6 +293,7 @@ func (s *UserBusiness) ForgetPassword(ctx context.Context, email *mail.Address) 
 	return user, token, nil
 }
 
+// result of forgetting password
 func (s *UserBusiness) PasswordReset(ctx context.Context, newPass string, token string) (uuid.UUID, error) {
 	newPassword, err := HashPassword([]byte(newPass))
 	if err != nil {
@@ -309,9 +329,11 @@ func (s *UserBusiness) PasswordReset(ctx context.Context, newPass string, token 
 	return userID, nil
 }
 
+// logged in user changing password
 func (s *UserBusiness) ChangePassword(ctx context.Context, userId uuid.UUID, oldPass, newPass string) (User, error) {
 	var userData *User
 	err := s.trx.WithTransaction(ctx, func(ctx context.Context) error {
+		// user not found db inconsistency because user must be logged in to change password
 		userValue, err := s.storer.GetUserByID(ctx, userId)
 		if err != nil {
 			return fmt.Errorf("getuserbyid: %w", err)
@@ -335,10 +357,9 @@ func (s *UserBusiness) ChangePassword(ctx context.Context, userId uuid.UUID, old
 		return nil
 	})
 
-	// user not found db inconsistency cause user must be logged in to change password
 	if err != nil {
 		if errors.Is(err, ErrInvalidPassword) {
-			return User{}, errs.NewDomainError(errs.Unauthenticated, errors.New("password incorrect"))
+			return User{}, errs.NewDomainError(errs.InvalidArgument, errors.New("current password incorrect"))
 		}
 		return User{}, fmt.Errorf("dbtransaction : %w", err)
 

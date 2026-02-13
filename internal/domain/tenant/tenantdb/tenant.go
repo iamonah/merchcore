@@ -111,3 +111,15 @@ func (t *tenantStore) CheckSubdomainAvailability(ctx context.Context, subdomain 
 	}
 	return exist, nil
 }
+
+func (t *tenantStore) CheckDomainAvailability(ctx context.Context, domain string) (bool, error) {
+	query := `
+		SELECT EXISTS (SELECT 1 FROM tenants WHERE domain = $1);
+	`
+	var exist bool
+	err := t.conn.QueryRow(ctx, query, domain).Scan(&exist)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", tenant.ErrDatabase, err)
+	}
+	return exist, nil
+}

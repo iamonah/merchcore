@@ -52,6 +52,14 @@ func (tb *TenantBusiness) CreateTenant(ctx context.Context, input CreateTenant) 
 		return nil, errs.NewDomainError(errs.InvalidArgument, err)
 	}
 
+	domainTaken, err := tb.storer.CheckDomainAvailability(ctx, *tenantProfile.Domain)
+	if err != nil {
+		return nil, fmt.Errorf("checkdomainavailability: %w", err)
+	}
+	if domainTaken { // domain or subdomain already exists
+		return nil, errs.NewDomainError(errs.AlreadyExists, ErrDomain)
+	}
+
 	subdomainTaken, err := tb.storer.CheckSubdomainAvailability(ctx, *tenantProfile.Subdomain)
 	if err != nil {
 		return nil, fmt.Errorf("checksubdomainavailability: %w", err)

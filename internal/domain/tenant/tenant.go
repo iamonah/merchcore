@@ -48,7 +48,6 @@ func NewTenantProfile(storeInfo CreateTenant) (*TenantProfile, error) {
 		fieldErrs.AddFieldError("description", errors.New("cannot be more than 255 characters"))
 	}
 
-	//Todo: check if domain exist before allow
 	var subdomain string
 	if storeInfo.Subdomain == nil {
 		subdomain = strings.ToLower(strings.ReplaceAll(businessName, " ", "")) + ".merchcore.com"

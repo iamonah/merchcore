@@ -18,5 +18,6 @@ var (
 type TenantRepository interface {
 	CreateTenant(ctx context.Context, tenant *TenantProfile) error
 	CreateTenantSchema(ctx context.Context, userID uuid.UUID) error
+	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
 	CheckSubdomainAvailability(ctx context.Context, subdomain string) (bool, error)
 }
